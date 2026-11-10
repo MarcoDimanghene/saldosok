@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from fastapi import HTTPException
 from pydantic import ValidationError
+from jose import jwt
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -15,6 +16,7 @@ from back.routes.tenants import register_tenant_with_user, verify_email
 from back.schemas.tenants import TenantRegister
 from back.schemas.user import EmailVerificationToken
 from database.database import Base
+from database.config import settings
 from database.security import get_password_hash
 
 
@@ -50,6 +52,16 @@ class EmailVerificationTests(unittest.TestCase):
         result = login_for_access_token(form, self.session)
         self.assertEqual(result["token_type"], "bearer")
         self.assertTrue(result["access_token"])
+        payload = jwt.decode(
+            result["access_token"],
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM],
+        )
+        expires_at = datetime.fromtimestamp(payload["exp"], timezone.utc)
+        self.assertGreater(
+            expires_at,
+            datetime.now(timezone.utc) + timedelta(days=364),
+        )
 
     def test_verification_token_is_single_use(self):
         raw_token = "one-time-token"

@@ -53,12 +53,24 @@ def _parse_integer(value, minimum=0):
     return result if result >= minimum else None
 
 
+def _parse_boolean(value):
+    if isinstance(value, bool):
+        return value
+    normalized = str(value or "").strip().casefold()
+    if normalized in {"si", "sí", "true", "1"}:
+        return True
+    if normalized in {"no", "false", "0"}:
+        return False
+    return None
+
+
 def _row_number(row, index):
     return row.get("rowNumber", index + 2)
 
 
 def import_finance_rows(db: Session, tenant_id: int, payload) -> dict:
     rows_by_sheet = {
+        "Empresas": payload.companies,
         "Ventas": payload.sales,
         "Compras": payload.purchases,
         "Cobros": payload.collections,
@@ -102,6 +114,105 @@ def import_finance_rows(db: Session, tenant_id: int, payload) -> dict:
     )
     companies_by_cuit = {_normalize_cuit(company.cuit): company for company in companies}
     companies_by_id = {company.id: company for company in companies}
+    new_companies = []
+    primary_issuer = next((company for company in companies if company.es_emisor), None)
+    issuer_update = None
+    issuer_row_seen = False
+
+    for index, row in enumerate(rows_by_sheet["Empresas"]):
+        sheet = "Empresas"
+        row_number = _row_number(row, index)
+        error_count = len(errors)
+        cuit_value = row.get("cuit")
+        cuit = _normalize_cuit(cuit_value) if cuit_value not in (None, "") else None
+        if cuit and (len(cuit) != 11 or not cuit.isdigit()):
+            add_error(sheet, row_number, "CUIT/CUIL", "Ingresá un CUIT/CUIL válido de 11 dígitos.")
+        is_issuer = _parse_boolean(row.get("es_emisor"))
+        if is_issuer is None:
+            add_error(sheet, row_number, "Es emisor", "Ingresá Sí o No.")
+        if is_issuer and issuer_row_seen:
+            add_error(sheet, row_number, "Es emisor", "Solo puede haber una fila marcada como emisor.")
+        if is_issuer:
+            issuer_row_seen = True
+        existing_company = companies_by_cuit.get(cuit) if cuit else None
+        if cuit and cuit in companies_by_cuit and not (
+            is_issuer and existing_company is primary_issuer
+        ):
+            add_error(sheet, row_number, "CUIT/CUIL", f"El CUIT/CUIL {cuit} ya está registrado en Empresas.")
+        if is_issuer and cuit:
+            other_tenant = (
+                db.query(models.Tenant.id)
+                .filter(models.Tenant.cuit == cuit, models.Tenant.id != tenant_id)
+                .first()
+            )
+            if other_tenant:
+                add_error(sheet, row_number, "CUIT/CUIL", "El CUIT ya está registrado en otra organización.")
+
+        legal_name = str(row.get("razon_social") or "").strip()
+        if not legal_name:
+            add_error(sheet, row_number, "Razón social", "Ingresá una razón social.")
+        elif len(legal_name) > 150:
+            add_error(sheet, row_number, "Razón social", "No puede superar los 150 caracteres.")
+
+        is_client = _parse_boolean(row.get("es_cliente"))
+        is_supplier = _parse_boolean(row.get("es_proveedor"))
+        if is_client is None:
+            add_error(sheet, row_number, "Es cliente", "Ingresá Sí o No.")
+        if is_supplier is None:
+            add_error(sheet, row_number, "Es proveedor", "Ingresá Sí o No.")
+        if is_client is False and is_supplier is False and is_issuer is False:
+            add_error(sheet, row_number, "Rol", "Seleccioná al menos un rol: cliente, proveedor o emisor.")
+        if not cuit and (is_client or not is_supplier or is_issuer):
+            add_error(sheet, row_number, "CUIT/CUIL", "El CUIT/CUIL es obligatorio para clientes y emisores.")
+        tax_condition = str(row.get("condicion_iva") or "").strip() or None
+        address = str(row.get("domicilio") or "").strip() or None
+        if is_issuer and tax_condition and len(tax_condition) > 50:
+            add_error(sheet, row_number, "Condición de IVA", "No puede superar los 50 caracteres.")
+        if is_issuer and address and len(address) > 255:
+            add_error(sheet, row_number, "Domicilio", "No puede superar los 255 caracteres.")
+
+        if len(errors) != error_count:
+            continue
+
+        if is_issuer:
+            company = primary_issuer or models.Company(tenant_id=tenant_id)
+            issuer_update = {
+                "cuit": cuit,
+                "razon_social": legal_name,
+                "condicion_iva": tax_condition,
+                "domicilio": address,
+                "localidad": str(row.get("localidad") or "").strip() or None,
+                "provincia": str(row.get("provincia") or "").strip() or None,
+                "es_cliente": is_client,
+                "es_proveedor": is_supplier,
+                "es_emisor": True,
+            }
+            if primary_issuer is None:
+                new_companies.append(company)
+                primary_issuer = company
+            else:
+                old_cuit = _normalize_cuit(primary_issuer.cuit)
+                if old_cuit:
+                    companies_by_cuit.pop(old_cuit, None)
+            if company in new_companies:
+                for field, value in issuer_update.items():
+                    setattr(company, field, value)
+            companies_by_cuit[cuit] = company
+        else:
+            company = models.Company(
+                cuit=cuit,
+                razon_social=legal_name,
+                condicion_iva=tax_condition,
+                domicilio=address,
+                localidad=str(row.get("localidad") or "").strip() or None,
+                provincia=str(row.get("provincia") or "").strip() or None,
+                es_cliente=is_client,
+                es_proveedor=is_supplier,
+                tenant_id=tenant_id,
+            )
+            new_companies.append(company)
+            if cuit:
+                companies_by_cuit[cuit] = company
 
     def get_company(cuit_value, sheet, row_number, field, required_role):
         cuit = _normalize_cuit(cuit_value)
@@ -234,8 +345,8 @@ def import_finance_rows(db: Session, tenant_id: int, payload) -> dict:
 
         invoice = models.SalesInvoice(
             tenant_id=tenant_id,
-            emisor_id=issuer.id,
-            cliente_id=client.id,
+            emisor=issuer,
+            cliente=client,
             letra=letter,
             punto_venta=point_of_sale,
             nro_factura=invoice_number,
@@ -306,7 +417,7 @@ def import_finance_rows(db: Session, tenant_id: int, payload) -> dict:
 
         invoice = models.PurchaseInvoice(
             tenant_id=tenant_id,
-            proveedor_id=supplier.id,
+            proveedor=supplier,
             letra=letter,
             punto_venta=point_of_sale,
             nro_factura=invoice_number,
@@ -546,7 +657,15 @@ def import_finance_rows(db: Session, tenant_id: int, payload) -> dict:
         return {"ok": False, "errors": errors}
 
     try:
-        db.add_all(new_sales + new_purchases)
+        if issuer_update:
+            tenant.cuit = issuer_update["cuit"]
+            tenant.razon_social = issuer_update["razon_social"]
+            tenant.condicion_iva = issuer_update["condicion_iva"]
+            tenant.domicilio = issuer_update["domicilio"]
+            if primary_issuer not in new_companies:
+                for field, value in issuer_update.items():
+                    setattr(primary_issuer, field, value)
+        db.add_all(new_companies + new_sales + new_purchases)
         db.flush()
         for invoice in new_purchases:
             invoice.numero_interno = f"COMP-{tenant_id}-{invoice.id:06d}"
@@ -571,6 +690,8 @@ def import_finance_rows(db: Session, tenant_id: int, payload) -> dict:
     return {
         "ok": True,
         "imported": {
+            "companies": len(new_companies),
+            "issuer_updated": issuer_update is not None,
             "sales": len(new_sales),
             "purchases": len(new_purchases),
             "collections": len(collections_to_create),

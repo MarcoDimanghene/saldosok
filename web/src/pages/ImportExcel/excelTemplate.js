@@ -1,4 +1,15 @@
 const SHEETS = {
+  Empresas: [
+    { key: 'cuit', header: 'CUIT/CUIL', width: 18, text: true },
+    { key: 'razon_social', header: 'Razón social', width: 32, text: true },
+    { key: 'condicion_iva', header: 'Condición de IVA', width: 24, text: true },
+    { key: 'domicilio', header: 'Domicilio', width: 32, text: true },
+    { key: 'localidad', header: 'Localidad', width: 24, text: true },
+    { key: 'provincia', header: 'Provincia', width: 24, text: true },
+    { key: 'es_cliente', header: 'Es cliente (Sí/No)', width: 20, text: true },
+    { key: 'es_proveedor', header: 'Es proveedor (Sí/No)', width: 22, text: true },
+    { key: 'es_emisor', header: 'Es emisor (Sí/No)', width: 20, text: true },
+  ],
   Ventas: [
     { key: 'cuit_emisor', header: 'CUIT emisor', width: 18, text: true },
     { key: 'cuit_cliente', header: 'CUIT cliente', width: 18, text: true },
@@ -89,10 +100,12 @@ export const downloadFinanceTemplate = async () => {
   instructions.columns = [{ width: 112 }];
   instructions.addRows([
     ['Plantilla de migración financiera - Saldo Ok'],
-    ['Completá las hojas Ventas, Compras, Cobros y Pagos según los encabezados. Podés dejar vacías las hojas que no necesites.'],
-    ['Antes de importar, registrá en Empresas todos los CUIT y asignales los roles correspondientes. No se crean empresas desde esta planilla.'],
+    ['Completá las hojas Empresas, Ventas, Compras, Cobros y Pagos según los encabezados. Podés dejar vacías las hojas que no necesites.'],
+    ['En Empresas, indicá al menos un rol por fila: cliente, proveedor, emisor o una combinación. Podés omitir el CUIT/CUIL únicamente para proveedores que no sean clientes ni emisores.'],
+    ['La hoja Empresas crea registros nuevos; si el CUIT/CUIL ya existe, se informa un error y no se modifica ningún dato existente.'],
+    ['La fila marcada como emisor actualiza el perfil fiscal de tu organización y sincroniza su emisor. Solo puede haber un emisor por archivo.'],
     ['Las compras que se importan deben tener factura formal. Cobros y pagos se vinculan por CUIT y número de factura.'],
-    ['Las facturas deben estar en la hoja correspondiente o ya existir en Saldo Ok.'],
+    ['Las facturas deben estar en la hoja correspondiente o ya existir en Saldo Ok. Las empresas incluidas en esta planilla pueden usarse en las facturas del mismo archivo.'],
     ['Usá fechas de Excel o el formato AAAA-MM-DD. Los importes deben ser positivos, con hasta dos decimales. No incluyas fórmulas.'],
     ['La importación es integral: si hay una fila inválida o una factura duplicada, no se guarda ningún dato. Corregí los errores y volvé a importar.'],
     ['No cambies los nombres de las hojas ni los encabezados. El límite es de 5.000 filas de datos por archivo.'],
@@ -180,6 +193,7 @@ export const readFinanceWorkbook = async (file) => {
   });
 
   return {
+    companies: records.Empresas,
     sales: records.Ventas,
     purchases: records.Compras,
     collections: records.Cobros,

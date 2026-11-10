@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { Link } from 'react-router-dom';
 import { TbDownload, TbFileSpreadsheet, TbUpload } from 'react-icons/tb';
 import { Button } from '../../component/ui/UIComponents';
-import { fetchDashboard, fetchPurchaseInvoices, fetchSalesInvoices } from '../../store';
+import {
+  fetchCompanies,
+  fetchDashboard,
+  fetchPurchaseInvoices,
+  fetchSalesInvoices,
+} from '../../store';
 import { importFinance } from '../../services/financeImportService';
 import {
   downloadFinanceTemplate,
@@ -20,7 +24,14 @@ import {
 } from './ImportExcel.styles';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
-const EMPTY_COUNTS = { sales: 0, purchases: 0, collections: 0, payments: 0 };
+const EMPTY_COUNTS = {
+  companies: 0,
+  issuer_updated: false,
+  sales: 0,
+  purchases: 0,
+  collections: 0,
+  payments: 0,
+};
 
 const ImportExcel = () => {
   const dispatch = useDispatch();
@@ -74,6 +85,7 @@ const ImportExcel = () => {
 
       setResult({ imported: { ...EMPTY_COUNTS, ...response.imported } });
       await Promise.all([
+        dispatch(fetchCompanies({ force: true })),
         dispatch(fetchDashboard({ force: true })),
         dispatch(fetchSalesInvoices({ force: true })),
         dispatch(fetchPurchaseInvoices({ force: true })),
@@ -91,14 +103,14 @@ const ImportExcel = () => {
     <>
       <PageHeader>
         <h1>Importar desde Excel</h1>
-        <p>Migrá facturas de venta y compra, junto con sus cobros y pagos, en una sola operación.</p>
+        <p>Migrá empresas, proveedores, facturas de venta y compra, junto con sus cobros y pagos, en una sola operación.</p>
       </PageHeader>
 
       <Panel as="section">
         <h2>1. Descargá y completá la plantilla</h2>
         <Guidance>
-          <li>La plantilla contiene hojas independientes para Ventas, Compras, Cobros y Pagos.</li>
-          <li>Los CUIT deben pertenecer a empresas ya registradas con el rol adecuado en <Link to="/companies">Empresas</Link>.</li>
+          <li>La plantilla contiene hojas independientes para Empresas, Ventas, Compras, Cobros y Pagos.</li>
+          <li>Podés crear empresas y proveedores en la hoja Empresas, y usarlos en las facturas del mismo archivo. La fila marcada como emisor actualiza el perfil fiscal de tu organización.</li>
           <li>Las compras de esta plantilla corresponden a facturas formales; los pagos y cobros se vinculan por los datos de la factura.</li>
           <li>Se aceptan facturas nuevas incluidas en el archivo y movimientos aplicados a facturas ya existentes.</li>
           <li>La importación es integral: ante cualquier error no se guarda ninguna fila. Corregí los errores informados y volvé a importar.</li>
@@ -144,6 +156,8 @@ const ImportExcel = () => {
           <StatusMessage role="status">
             <strong>Importación completada.</strong>
             <ul>
+              <li>Empresas y proveedores: {imported.companies}</li>
+              {imported.issuer_updated && <li>Perfil del emisor: actualizado</li>}
               <li>Ventas: {imported.sales}</li>
               <li>Compras: {imported.purchases}</li>
               <li>Cobros: {imported.collections}</li>

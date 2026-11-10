@@ -4,6 +4,17 @@ import ExcelJS from 'exceljs';
 import { readFinanceWorkbook } from '../src/pages/ImportExcel/excelTemplate.js';
 
 const sheetHeaders = {
+  Empresas: [
+    'CUIT/CUIL',
+    'Razón social',
+    'Condición de IVA',
+    'Domicilio',
+    'Localidad',
+    'Provincia',
+    'Es cliente (Sí/No)',
+    'Es proveedor (Sí/No)',
+    'Es emisor (Sí/No)',
+  ],
   Ventas: [
     'CUIT emisor',
     'CUIT cliente',
@@ -66,7 +77,7 @@ const excelDateSerial = (year, month, day) => (
   (Date.UTC(year, month - 1, day) - Date.UTC(1899, 11, 30)) / 86400000
 );
 
-test('reads rows from all four finance sheets and normalizes Excel dates', async () => {
+test('reads rows from all finance sheets and normalizes Excel dates', async () => {
   const workbook = new ExcelJS.Workbook();
   Object.entries(sheetHeaders).forEach(([name, headers]) => {
     const sheet = workbook.addWorksheet(name);
@@ -74,6 +85,17 @@ test('reads rows from all four finance sheets and normalizes Excel dates', async
     sheet.addRow(Array(headers.length).fill(''));
   });
   const sales = workbook.getWorksheet('Ventas');
+  workbook.getWorksheet('Empresas').addRow([
+    '20333333333',
+    'Proveedor de prueba',
+    '',
+    '',
+    '',
+    '',
+    'No',
+    'Sí',
+    'No',
+  ]);
   sales.addRow([
     '20111111111',
     '20222222222',
@@ -93,6 +115,9 @@ test('reads rows from all four finance sheets and normalizes Excel dates', async
   assert.equal(result.sales[0].rowNumber, 3);
   assert.equal(result.sales[0].fecha_emision, '2026-10-01');
   assert.equal(result.sales[0].importe, 100.5);
+  assert.equal(result.companies.length, 1);
+  assert.equal(result.companies[0].cuit, '20333333333');
+  assert.equal(result.companies[0].es_proveedor, 'Sí');
   assert.deepEqual(result.purchases, []);
   assert.deepEqual(result.collections, []);
   assert.deepEqual(result.payments, []);
