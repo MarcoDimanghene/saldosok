@@ -16,7 +16,7 @@ def creteate_company(company: schemas.CompanyCreate, db: Session = Depends(get_d
   if company.is_issuer:
       raise HTTPException(
           status_code=400,
-          detail="El emisor se administra desde el perfil de organización.",
+          detail="Las razones sociales emisoras se administran desde la importación Excel.",
       )
   # Verificamos duplicidad por CUIT dentro del tenant
   db_company = None
@@ -72,7 +72,7 @@ def update_company_route(company_id: int, company: schemas.CompanyUpdate, db: Se
     if existing.es_emisor or company.is_issuer:
         raise HTTPException(
             status_code=400,
-            detail="El emisor se administra desde el perfil de organización.",
+            detail="Las razones sociales emisoras se administran desde la importación Excel.",
         )
 
     role_fields = {"is_client", "is_supplier", "is_issuer"}
@@ -116,7 +116,7 @@ def delete_company_route(company_id: int, db: Session = Depends(get_db), current
     if issuer:
         raise HTTPException(
             status_code=400,
-            detail="El emisor se administra desde el perfil de organización.",
+            detail="Las razones sociales emisoras se administran desde la importación Excel.",
         )
 
     # 1. Ejecutamos el borrado en el CRUD

@@ -118,7 +118,7 @@ def delete_company(db: Session, tenant_id: int, company_id: int):
     if db_company.es_emisor:
         raise HTTPException(
             status_code=400,
-            detail="El emisor se administra desde el perfil de organización.",
+            detail="Las razones sociales emisoras se administran desde la importación Excel.",
         )
 
     # Si la empresa tiene facturas asociadas, la DB no nos deja borrarla

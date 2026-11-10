@@ -26,7 +26,7 @@ import {
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const EMPTY_COUNTS = {
   companies: 0,
-  issuer_updated: false,
+  issuers_enabled: 0,
   sales: 0,
   purchases: 0,
   collections: 0,
@@ -110,7 +110,8 @@ const ImportExcel = () => {
         <h2>1. Descargá y completá la plantilla</h2>
         <Guidance>
           <li>La plantilla contiene hojas independientes para Empresas, Ventas, Compras, Cobros y Pagos.</li>
-          <li>Podés crear empresas y proveedores en la hoja Empresas, y usarlos en las facturas del mismo archivo. La fila marcada como emisor actualiza el perfil fiscal de tu organización.</li>
+          <li>Podés incluir varias razones sociales emisoras en Empresas. Elegí la emisora de cada factura en Ventas usando su CUIT.</li>
+          <li>El perfil de organización es independiente de las razones sociales que emiten tus facturas.</li>
           <li>Las compras de esta plantilla corresponden a facturas formales; los pagos y cobros se vinculan por los datos de la factura.</li>
           <li>Se aceptan facturas nuevas incluidas en el archivo y movimientos aplicados a facturas ya existentes.</li>
           <li>La importación es integral: ante cualquier error no se guarda ninguna fila. Corregí los errores informados y volvé a importar.</li>
@@ -157,7 +158,7 @@ const ImportExcel = () => {
             <strong>Importación completada.</strong>
             <ul>
               <li>Empresas y proveedores: {imported.companies}</li>
-              {imported.issuer_updated && <li>Perfil del emisor: actualizado</li>}
+              <li>Emisoras nuevas o habilitadas: {imported.issuers_enabled}</li>
               <li>Ventas: {imported.sales}</li>
               <li>Compras: {imported.purchases}</li>
               <li>Cobros: {imported.collections}</li>

@@ -77,22 +77,6 @@ def update_tenant(
     for key, value in update_data.items():
         setattr(db_tenant, key, value)
 
-    issuer = (
-        db.query(models.Company)
-        .filter(
-            models.Company.tenant_id == tenant_id,
-            models.Company.es_emisor.is_(True),
-        )
-        .first()
-    )
-    if issuer:
-        issuer.cuit = db_tenant.cuit
-        issuer.razon_social = db_tenant.razon_social
-        issuer.condicion_iva = db_tenant.condicion_iva
-        issuer.domicilio = db_tenant.domicilio
-    elif db_tenant.cuit and db_tenant.razon_social:
-        _add_primary_issuer(db, db_tenant)
-
     db.commit()
     db.refresh(db_tenant)
     return db_tenant

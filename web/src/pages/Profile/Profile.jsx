@@ -97,8 +97,8 @@ const Profile = () => {
     <ProfileContainer>
       <h1>Perfil de organización</h1>
       <p>
-        Tu cuenta personal contrata el servicio. Completa estos datos si vas a registrar
-        ventas a nombre de una empresa; el emisor se sincroniza con este perfil.
+        Estos son los datos de tu cuenta. Las razones sociales emisoras se administran
+        por separado y podés elegirlas en cada factura de venta.
       </p>
       {message && (
         <ProfileMessage $error={message.error} role={message.error ? 'alert' : 'status'}>

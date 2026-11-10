@@ -139,7 +139,7 @@ class FinanceImportTests(unittest.TestCase):
             result["imported"],
             {
                 "companies": 0,
-                "issuer_updated": False,
+                "issuers_enabled": 0,
                 "sales": 1,
                 "purchases": 1,
                 "collections": 2,
@@ -198,84 +198,67 @@ class FinanceImportTests(unittest.TestCase):
         self.assertEqual(sales_invoice.cliente.razon_social, "Nuevo cliente")
         self.assertEqual(purchase_invoice.proveedor.razon_social, "Nuevo proveedor")
 
-    def test_imported_issuer_updates_organization_profile_and_is_used_by_sales(self):
+    def test_multiple_issuers_can_be_imported_without_changing_organization_profile(self):
+        other_client = self._company("20888888888", "Otro cliente", client=True)
         result = import_finance_rows(
             self.session,
             self.tenant.id,
             self._payload(
-                companies=[{
-                    "rowNumber": 2,
-                    "cuit": "20999999999",
-                    "razon_social": "Emisor actualizado",
-                    "condicion_iva": "Responsable Inscripto",
-                    "domicilio": "Calle 123",
-                    "es_cliente": "No",
-                    "es_proveedor": "No",
-                    "es_emisor": "Sí",
-                }],
-                sales=[self._sales(cuit_emisor="20999999999")],
+                companies=[
+                    {
+                        "rowNumber": 2,
+                        "cuit": self.issuer.cuit,
+                        "razon_social": "No modificar emisor existente",
+                        "es_cliente": "No",
+                        "es_proveedor": "No",
+                        "es_emisor": "Sí",
+                    },
+                    {
+                        "rowNumber": 3,
+                        "cuit": "20666666666",
+                        "razon_social": "Segunda razón social",
+                        "es_cliente": "No",
+                        "es_proveedor": "No",
+                        "es_emisor": "Sí",
+                    },
+                    {
+                        "rowNumber": 4,
+                        "cuit": self.client.cuit,
+                        "razon_social": "Cliente",
+                        "es_cliente": "Sí",
+                        "es_proveedor": "No",
+                        "es_emisor": "Sí",
+                    },
+                ],
+                sales=[
+                    self._sales(numero_factura=10),
+                    self._sales(
+                        row_number=3,
+                        cuit_emisor="20666666666",
+                        numero_factura=11,
+                    ),
+                    self._sales(
+                        row_number=4,
+                        cuit_emisor=self.client.cuit,
+                        cuit_cliente=other_client.cuit,
+                        numero_factura=12,
+                    ),
+                ],
             ),
-        )
-
-        self.assertTrue(result["ok"])
-        self.assertEqual(result["imported"]["companies"], 0)
-        self.assertTrue(result["imported"]["issuer_updated"])
-        self.assertEqual(self.tenant.cuit, "20999999999")
-        self.assertEqual(self.tenant.razon_social, "Emisor actualizado")
-        self.assertEqual(self.issuer.cuit, "20999999999")
-        self.assertEqual(self.session.query(models.SalesInvoice).one().emisor, self.issuer)
-
-    def test_imported_issuer_creates_the_organization_profile_when_missing(self):
-        tenant = models.Tenant()
-        self.session.add(tenant)
-        self.session.commit()
-
-        result = import_finance_rows(
-            self.session,
-            tenant.id,
-            self._payload(companies=[{
-                "rowNumber": 2,
-                "cuit": "20666666666",
-                "razon_social": "Nuevo emisor",
-                "es_cliente": "No",
-                "es_proveedor": "No",
-                "es_emisor": "Sí",
-            }]),
         )
 
         self.assertTrue(result["ok"])
         self.assertEqual(result["imported"]["companies"], 1)
-        self.assertTrue(result["imported"]["issuer_updated"])
-        self.assertEqual(tenant.cuit, "20666666666")
-        self.assertEqual(
-            self.session.query(models.Company).filter_by(
-                tenant_id=tenant.id,
-                es_emisor=True,
-            ).count(),
-            1,
-        )
-
-    def test_invalid_import_does_not_update_issuer_profile(self):
-        result = import_finance_rows(
-            self.session,
-            self.tenant.id,
-            self._payload(
-                companies=[{
-                    "rowNumber": 2,
-                    "cuit": "20999999999",
-                    "razon_social": "Emisor actualizado",
-                    "es_cliente": "No",
-                    "es_proveedor": "No",
-                    "es_emisor": "Sí",
-                }],
-                sales=[self._sales(cuit_emisor="20888888888")],
-            ),
-        )
-
-        self.assertFalse(result["ok"])
+        self.assertEqual(result["imported"]["issuers_enabled"], 2)
         self.assertEqual(self.tenant.cuit, "30111111111")
-        self.assertEqual(self.issuer.cuit, "20111111111")
-        self.assertEqual(self.session.query(models.SalesInvoice).count(), 0)
+        self.assertEqual(self.tenant.razon_social, "Tenant importación")
+        self.assertEqual(self.issuer.razon_social, "Emisor")
+        invoices = self.session.query(models.SalesInvoice).order_by(
+            models.SalesInvoice.nro_factura
+        ).all()
+        self.assertEqual(invoices[0].emisor, self.issuer)
+        self.assertEqual(invoices[1].emisor.cuit, "20666666666")
+        self.assertEqual(invoices[2].emisor, self.client)
 
     def test_duplicate_company_prevents_all_writes(self):
         result = import_finance_rows(
@@ -298,6 +281,27 @@ class FinanceImportTests(unittest.TestCase):
         self.assertEqual(result["errors"][0]["sheet"], "Empresas")
         self.assertEqual(self.session.query(models.SalesInvoice).count(), 0)
         self.assertEqual(self.session.query(models.Company).count(), 3)
+
+    def test_invalid_import_does_not_assign_emitter_role_to_existing_company(self):
+        result = import_finance_rows(
+            self.session,
+            self.tenant.id,
+            self._payload(
+                companies=[{
+                    "rowNumber": 2,
+                    "cuit": self.client.cuit,
+                    "razon_social": self.client.razon_social,
+                    "es_cliente": "Sí",
+                    "es_proveedor": "No",
+                    "es_emisor": "Sí",
+                }],
+                sales=[self._sales(cuit_emisor="20999999999")],
+            ),
+        )
+
+        self.assertFalse(result["ok"])
+        self.assertFalse(self.client.es_emisor)
+        self.assertEqual(self.session.query(models.SalesInvoice).count(), 0)
 
     def test_any_validation_error_prevents_all_writes(self):
         result = import_finance_rows(

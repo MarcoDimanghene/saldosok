@@ -37,7 +37,7 @@ const Companies = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
   const [editingCompanyId, setEditingCompanyId] = useState(null);
-  const portfolioCompanies = companies.filter((company) => !company.es_emisor);
+  const portfolioCompanies = companies;
 
   const loadCompanies = useCallback(async () => {
     await dispatch(fetchCompanies({ force: true }));
@@ -122,7 +122,7 @@ const Companies = () => {
     <>
       <PageHeader>
         <h1>Empresas</h1>
-        <p>Administra tu cartera de clientes y proveedores. El emisor se configura en el perfil de organización.</p>
+        <p>Administra tu cartera de clientes y proveedores. Las razones sociales emisoras se importan desde la plantilla Excel y se seleccionan por CUIT en cada venta.</p>
       </PageHeader>
 
       {message && (
@@ -231,7 +231,7 @@ const Companies = () => {
         </Panel>
 
         <Panel as="section">
-          <h2>Empresas registradas</h2>
+          <h2>Empresas y emisoras registradas</h2>
           {status === 'idle' || status === 'loading' ? (
             <p role="status">Cargando empresas…</p>
           ) : portfolioCompanies.length ? (
@@ -240,6 +240,7 @@ const Companies = () => {
                 const roles = [
                   company.es_cliente && 'Cliente',
                   company.es_proveedor && 'Proveedor',
+                  company.es_emisor && 'Emisor',
                 ].filter(Boolean);
 
                 return (
@@ -263,15 +264,18 @@ const Companies = () => {
                         </span>
                       ))}
                       {!roles.length && <span>Sin rol asignado</span>}
+                      {company.es_emisor && <span>Administrada desde Excel</span>}
                     </CompanyRoles>
-                    <Button
-                      type="button"
-                      $variant="secondary"
-                      onClick={() => startEditing(company)}
-                      aria-label={`Editar ${company.razon_social}`}
-                    >
-                      <TbEdit aria-hidden="true" /> Editar
-                    </Button>
+                    {!company.es_emisor && (
+                      <Button
+                        type="button"
+                        $variant="secondary"
+                        onClick={() => startEditing(company)}
+                        aria-label={`Editar ${company.razon_social}`}
+                      >
+                        <TbEdit aria-hidden="true" /> Editar
+                      </Button>
+                    )}
                   </CompanyItem>
                 );
               })}

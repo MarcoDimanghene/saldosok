@@ -115,9 +115,8 @@ def import_finance_rows(db: Session, tenant_id: int, payload) -> dict:
     companies_by_cuit = {_normalize_cuit(company.cuit): company for company in companies}
     companies_by_id = {company.id: company for company in companies}
     new_companies = []
-    primary_issuer = next((company for company in companies if company.es_emisor), None)
-    issuer_update = None
-    issuer_row_seen = False
+    imported_cuits = set()
+    pending_issuer_companies = set()
 
     for index, row in enumerate(rows_by_sheet["Empresas"]):
         sheet = "Empresas"
@@ -130,14 +129,13 @@ def import_finance_rows(db: Session, tenant_id: int, payload) -> dict:
         is_issuer = _parse_boolean(row.get("es_emisor"))
         if is_issuer is None:
             add_error(sheet, row_number, "Es emisor", "Ingresá Sí o No.")
-        if is_issuer and issuer_row_seen:
-            add_error(sheet, row_number, "Es emisor", "Solo puede haber una fila marcada como emisor.")
-        if is_issuer:
-            issuer_row_seen = True
         existing_company = companies_by_cuit.get(cuit) if cuit else None
-        if cuit and cuit in companies_by_cuit and not (
-            is_issuer and existing_company is primary_issuer
-        ):
+        existing_issuer = bool(
+            is_issuer and existing_company and existing_company.es_emisor
+        )
+        if cuit and cuit in imported_cuits:
+            add_error(sheet, row_number, "CUIT/CUIL", f"El CUIT/CUIL {cuit} está repetido en la planilla.")
+        elif cuit and existing_company and not is_issuer:
             add_error(sheet, row_number, "CUIT/CUIL", f"El CUIT/CUIL {cuit} ya está registrado en Empresas.")
         if is_issuer and cuit:
             other_tenant = (
@@ -174,45 +172,30 @@ def import_finance_rows(db: Session, tenant_id: int, payload) -> dict:
         if len(errors) != error_count:
             continue
 
-        if is_issuer:
-            company = primary_issuer or models.Company(tenant_id=tenant_id)
-            issuer_update = {
-                "cuit": cuit,
-                "razon_social": legal_name,
-                "condicion_iva": tax_condition,
-                "domicilio": address,
-                "localidad": str(row.get("localidad") or "").strip() or None,
-                "provincia": str(row.get("provincia") or "").strip() or None,
-                "es_cliente": is_client,
-                "es_proveedor": is_supplier,
-                "es_emisor": True,
-            }
-            if primary_issuer is None:
-                new_companies.append(company)
-                primary_issuer = company
-            else:
-                old_cuit = _normalize_cuit(primary_issuer.cuit)
-                if old_cuit:
-                    companies_by_cuit.pop(old_cuit, None)
-            if company in new_companies:
-                for field, value in issuer_update.items():
-                    setattr(company, field, value)
+        if existing_issuer:
+            imported_cuits.add(cuit)
+            continue
+        if existing_company and is_issuer:
+            pending_issuer_companies.add(existing_company)
+            imported_cuits.add(cuit)
+            continue
+
+        company = models.Company(
+            cuit=cuit,
+            razon_social=legal_name,
+            condicion_iva=tax_condition,
+            domicilio=address,
+            localidad=str(row.get("localidad") or "").strip() or None,
+            provincia=str(row.get("provincia") or "").strip() or None,
+            es_cliente=is_client,
+            es_proveedor=is_supplier,
+            es_emisor=is_issuer,
+            tenant_id=tenant_id,
+        )
+        new_companies.append(company)
+        if cuit:
             companies_by_cuit[cuit] = company
-        else:
-            company = models.Company(
-                cuit=cuit,
-                razon_social=legal_name,
-                condicion_iva=tax_condition,
-                domicilio=address,
-                localidad=str(row.get("localidad") or "").strip() or None,
-                provincia=str(row.get("provincia") or "").strip() or None,
-                es_cliente=is_client,
-                es_proveedor=is_supplier,
-                tenant_id=tenant_id,
-            )
-            new_companies.append(company)
-            if cuit:
-                companies_by_cuit[cuit] = company
+            imported_cuits.add(cuit)
 
     def get_company(cuit_value, sheet, row_number, field, required_role):
         cuit = _normalize_cuit(cuit_value)
@@ -228,7 +211,10 @@ def import_finance_rows(db: Session, tenant_id: int, payload) -> dict:
                 f"El CUIT {cuit} no está registrado en Empresas.",
             )
             return None
-        if not getattr(company, required_role):
+        has_role = getattr(company, required_role) or (
+            required_role == "es_emisor" and company in pending_issuer_companies
+        )
+        if not has_role:
             role_names = {
                 "es_emisor": "emisor",
                 "es_cliente": "cliente",
@@ -657,14 +643,8 @@ def import_finance_rows(db: Session, tenant_id: int, payload) -> dict:
         return {"ok": False, "errors": errors}
 
     try:
-        if issuer_update:
-            tenant.cuit = issuer_update["cuit"]
-            tenant.razon_social = issuer_update["razon_social"]
-            tenant.condicion_iva = issuer_update["condicion_iva"]
-            tenant.domicilio = issuer_update["domicilio"]
-            if primary_issuer not in new_companies:
-                for field, value in issuer_update.items():
-                    setattr(primary_issuer, field, value)
+        for company in pending_issuer_companies:
+            company.es_emisor = True
         db.add_all(new_companies + new_sales + new_purchases)
         db.flush()
         for invoice in new_purchases:
@@ -691,7 +671,10 @@ def import_finance_rows(db: Session, tenant_id: int, payload) -> dict:
         "ok": True,
         "imported": {
             "companies": len(new_companies),
-            "issuer_updated": issuer_update is not None,
+            "issuers_enabled": (
+                sum(company.es_emisor for company in new_companies)
+                + len(pending_issuer_companies)
+            ),
             "sales": len(new_sales),
             "purchases": len(new_purchases),
             "collections": len(collections_to_create),

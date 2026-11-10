@@ -96,6 +96,17 @@ test('reads rows from all finance sheets and normalizes Excel dates', async () =
     'Sí',
     'No',
   ]);
+  workbook.getWorksheet('Empresas').addRow([
+    '20444444444',
+    'Emisor de prueba',
+    '',
+    '',
+    '',
+    '',
+    'No',
+    'No',
+    'Sí',
+  ]);
   sales.addRow([
     '20111111111',
     '20222222222',
@@ -115,9 +126,10 @@ test('reads rows from all finance sheets and normalizes Excel dates', async () =
   assert.equal(result.sales[0].rowNumber, 3);
   assert.equal(result.sales[0].fecha_emision, '2026-10-01');
   assert.equal(result.sales[0].importe, 100.5);
-  assert.equal(result.companies.length, 1);
+  assert.equal(result.companies.length, 2);
   assert.equal(result.companies[0].cuit, '20333333333');
   assert.equal(result.companies[0].es_proveedor, 'Sí');
+  assert.equal(result.companies[1].es_emisor, 'Sí');
   assert.deepEqual(result.purchases, []);
   assert.deepEqual(result.collections, []);
   assert.deepEqual(result.payments, []);

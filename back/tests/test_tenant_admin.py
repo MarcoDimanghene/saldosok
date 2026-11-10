@@ -148,7 +148,7 @@ class TenantAdminTests(unittest.TestCase):
         self.assertEqual(error.exception.status_code, 400)
         self.assertEqual(tenant.plan, "moderado")
 
-    def test_account_admin_can_create_and_update_separate_company_profile(self):
+    def test_account_admin_profile_changes_do_not_create_or_modify_issuers(self):
         tenant = models.Tenant(plan="basico")
         self.session.add(tenant)
         self.session.commit()
@@ -164,20 +164,35 @@ class TenantAdminTests(unittest.TestCase):
             user,
         )
 
-        issuer = self.session.query(models.Company).filter_by(
+        self.assertEqual(updated.cuit, "30111111111")
+        self.assertEqual(
+            self.session.query(models.Company).filter_by(
+                tenant_id=tenant.id,
+                es_emisor=True,
+            ).count(),
+            0,
+        )
+
+        issuer = models.Company(
             tenant_id=tenant.id,
+            cuit="20111111111",
+            razon_social="Emisor independiente",
             es_emisor=True,
-        ).one()
-        self.assertEqual(updated.cuit, issuer.cuit)
-        self.assertEqual(updated.razon_social, issuer.razon_social)
+        )
+        self.session.add(issuer)
+        self.session.commit()
 
         update_current_tenant(
-            TenantUpdate(razon_social="Organización actualizada"),
+            TenantUpdate(
+                cuit="30122222222",
+                razon_social="Organización actualizada",
+            ),
             self.session,
             user,
         )
         self.session.refresh(issuer)
-        self.assertEqual(issuer.razon_social, "Organización actualizada")
+        self.assertEqual(issuer.cuit, "20111111111")
+        self.assertEqual(issuer.razon_social, "Emisor independiente")
 
     def test_plan_user_limits_match_product_tiers(self):
         from back.crud.tenants import get_plan_user_limit
