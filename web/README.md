@@ -11,6 +11,9 @@ El backend debe tener `FRONTEND_URL` configurada en Vercel con el origen exacto
 del frontend (por ejemplo, `https://mi-app.vercel.app`, sin una ruta al final)
 para permitir las solicitudes del navegador.
 
+`vercel.json` configura el fallback de rutas de la SPA a `index.html`, para que
+secciones como `/dashboard` o `/imports` también funcionen al recargar la página.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import {
   AUTH_ROUTES,
@@ -11,6 +12,15 @@ import {
   TENANTS_ROUTES,
   USERS_ROUTES,
 } from '../src/routes/routes.js';
+
+test('Vercel rewrites SPA routes to the frontend entry point', async () => {
+  const config = JSON.parse(
+    await readFile(new URL('../vercel.json', import.meta.url), 'utf8'),
+  );
+  assert.deepEqual(config.rewrites, [
+    { source: '/(.*)', destination: '/index.html' },
+  ]);
+});
 
 test('navigation paths match the routes rendered by AppRoutes', () => {
   assert.deepEqual(ROUTE_MAP, {
