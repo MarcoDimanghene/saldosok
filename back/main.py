@@ -20,10 +20,11 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# CORS: permite que el frontend (Vite dev server) consuma la API
+# CORS: permite el frontend configurado y el servidor local de Vite.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        settings.FRONTEND_URL,
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ],

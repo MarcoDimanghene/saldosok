@@ -1,4 +1,8 @@
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const defaultApiUrl = import.meta.env.DEV
+  ? 'http://localhost:8000'
+  : 'https://saldosok-back.vercel.app';
+
+export const API_URL = (import.meta.env.VITE_API_URL || defaultApiUrl).replace(/\/+$/, '');
 
 export const PLANES = [
   {

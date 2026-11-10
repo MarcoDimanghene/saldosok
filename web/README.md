@@ -1,5 +1,16 @@
 # React + Vite
 
+## Conexión con la API
+
+En producción, el frontend usa `https://saldosok-back.vercel.app` por defecto.
+Para cambiarla, configura `VITE_API_URL` en las variables de entorno del frontend
+en Vercel y vuelve a desplegar. En desarrollo local, el valor predeterminado es
+`http://localhost:8000`; puedes sobrescribirlo con `VITE_API_URL` en `web/.env`.
+
+El backend debe tener `FRONTEND_URL` configurada en Vercel con el origen exacto
+del frontend (por ejemplo, `https://mi-app.vercel.app`, sin una ruta al final)
+para permitir las solicitudes del navegador.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
