@@ -564,13 +564,23 @@ const Invoices = () => {
               </thead>
               <tbody>
                 {salesInvoices.map((invoice) => (
-                  <TableRow key={invoice.id}>
+                  <TableRow
+                    key={invoice.id}
+                    className={invoice.estado === 'pendiente' ? 'invoice-row--pending' : undefined}
+                  >
                     <TableCell>{invoice.letra || '—'} {invoice.punto_venta || '—'}-{invoice.nro_factura || '—'}</TableCell>
                     <TableCell>
                       {companyNames.get(invoice.emisor_id) || 'Emisor anterior'} → {companyNames.get(invoice.cliente_id) || 'Cliente'}
                     </TableCell>
                     <TableCell className="numeric">{formatCurrency(invoice.monto_total)}</TableCell>
-                    <TableCell><StatusBadge $status={invoice.estado === 'pagado' ? 'saldada' : invoice.estado === 'vencida' ? 'vencida' : 'pendiente'}>{invoice.estado || 'pendiente'}</StatusBadge></TableCell>
+                    <TableCell>
+                      <StatusBadge
+                        className={invoice.estado === 'pendiente' ? 'invoice-status--pending' : undefined}
+                        $status={invoice.estado === 'pagado' ? 'saldada' : invoice.estado === 'vencida' ? 'vencida' : 'pendiente'}
+                      >
+                        {invoice.estado || 'pendiente'}
+                      </StatusBadge>
+                    </TableCell>
                     <TableCell>
                       <ActionCell>
                         <Button
@@ -611,7 +621,10 @@ const Invoices = () => {
               </thead>
               <tbody>
                 {purchaseInvoices.map((invoice) => (
-                  <TableRow key={invoice.id}>
+                  <TableRow
+                    key={invoice.id}
+                    className={invoice.estado === 'pendiente' ? 'invoice-row--pending' : undefined}
+                  >
                     <TableCell>
                       <strong>{invoice.numero_interno || `Compra ${invoice.id}`}</strong>
                       <span>{invoice.factura_recibida ? `Factura ${invoice.letra || ''} ${invoice.punto_venta || ''}-${invoice.nro_factura || ''}` : 'Factura formal pendiente'}</span>
@@ -621,7 +634,14 @@ const Invoices = () => {
                       {invoice.concepto && <span>{invoice.concepto}</span>}
                     </TableCell>
                     <TableCell className="numeric">{formatCurrency(invoice.monto_total)}</TableCell>
-                    <TableCell><StatusBadge $status={invoice.estado === 'pagado' ? 'saldada' : invoice.estado === 'vencida' ? 'vencida' : 'pendiente'}>{invoice.estado || 'pendiente'}</StatusBadge></TableCell>
+                    <TableCell>
+                      <StatusBadge
+                        className={invoice.estado === 'pendiente' ? 'invoice-status--pending' : undefined}
+                        $status={invoice.estado === 'pagado' ? 'saldada' : invoice.estado === 'vencida' ? 'vencida' : 'pendiente'}
+                      >
+                        {invoice.estado || 'pendiente'}
+                      </StatusBadge>
+                    </TableCell>
                     <TableCell>
                       <ActionCell>
                         <Button

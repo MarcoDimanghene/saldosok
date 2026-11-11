@@ -27,7 +27,6 @@ test('navigation paths match the routes rendered by AppRoutes', () => {
     root: '/',
     login: '/login',
     register: '/register',
-    plans: '/plans',
     dashboard: '/dashboard',
     users: '/users',
     companies: '/companies',

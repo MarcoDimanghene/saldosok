@@ -154,7 +154,17 @@ export const InvoiceList = styled.div`
   }
 
   tr:hover td {
-    background: rgba(255, 255, 255, 0.035);
+    background-color: #123143;
+    color: #fff;
+  }
+
+  tr.invoice-row--pending td:first-child {
+    border-left: 3px solid #f87171;
+  }
+
+  .invoice-status--pending {
+    background: rgba(248, 113, 113, 0.16);
+    color: #fca5a5;
   }
 
   td span {
