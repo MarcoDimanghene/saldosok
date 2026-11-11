@@ -191,7 +191,7 @@ def update_current_tenant(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    """Actualiza el perfil y plan de la organización del usuario."""
+    """Actualiza el perfil de la organización del usuario."""
     if not current_user.is_tenant_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -216,23 +216,6 @@ def update_current_tenant(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Ya existe un perfil de organización con ese CUIT.",
-            )
-
-    if "plan" in tenant_update.model_fields_set:
-        if tenant_update.plan is None:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="El plan no puede ser nulo.",
-            )
-        current_user_count = crud.count_users(db=db, tenant_id=current_user.tenant_id)
-        new_limit = crud.get_plan_user_limit(tenant_update.plan)
-        if current_user_count > new_limit:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    f"No puedes cambiar al plan '{tenant_update.plan}': "
-                    f"ya tienes {current_user_count} cuentas y el plan permite {new_limit}."
-                ),
             )
 
     updated_tenant = crud.update_tenant(

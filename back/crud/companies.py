@@ -115,12 +115,6 @@ def delete_company(db: Session, tenant_id: int, company_id: int):
 
     if not db_company:
         return False
-    if db_company.es_emisor:
-        raise HTTPException(
-            status_code=400,
-            detail="Las razones sociales emisoras se administran desde la importación Excel.",
-        )
-
     # Si la empresa tiene facturas asociadas, la DB no nos deja borrarla
     # (constraint de integridad). Mejor avisamos ANTES con un error claro
     # que dejar que Postgres tire un 500.

@@ -13,12 +13,10 @@ import {
 import {
   TbArrowDownRight,
   TbArrowUpRight,
-  TbBuildingBank,
   TbChartBar,
   TbRefresh,
   TbWallet,
 } from 'react-icons/tb';
-import { PLANES } from '../../config/appConfig';
 import { useAuth } from '../../hook/useAuth';
 import { fetchDashboard } from '../../store';
 import { Button } from '../../component/ui/UIComponents';
@@ -31,7 +29,6 @@ import {
   EmptyState,
   ErrorMessage,
   HeaderActions,
-  HeaderMeta,
   LoadingState,
   MetricCard,
   MetricIcon,
@@ -68,7 +65,6 @@ const Dashboard = () => {
   const { user, tenant } = useAuth();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const plan = PLANES.find((item) => item.id === tenant?.plan);
   const { summary, status, error } = useSelector((state) => state.dashboard);
   const loading = status === 'idle' || status === 'loading';
 
@@ -118,7 +114,6 @@ const Dashboard = () => {
           </DashboardSubtitle>
         </div>
         <HeaderActions>
-          {plan && <HeaderMeta><TbBuildingBank /> Plan {plan.nombre}</HeaderMeta>}
           {user?.is_tenant_admin && (
             <Button type="button" onClick={() => navigate('/users')}>
               Gestionar usuarios

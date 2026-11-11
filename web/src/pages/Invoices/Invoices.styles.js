@@ -118,6 +118,16 @@ export const FormInput = styled.input`
     background: ${COLORS.PRIMARY_CONTAINER};
     color: ${COLORS.SURFACE_CARD};
   }
+
+  &:where(select) {
+    color-scheme: dark;
+
+    option:hover,
+    option:checked {
+      background: #164e63;
+      color: #fff;
+    }
+  }
 `;
 
 export const InvoiceList = styled.div`

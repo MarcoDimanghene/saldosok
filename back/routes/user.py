@@ -24,18 +24,16 @@ def create_user_for_tenant(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_tenant_admin)
 ):
-    """Crea un usuario dentro del Tenant activo (respetando el límite del plan)."""
-    tenant = crud.get_tenant(db=db, tenant_id=current_user.tenant_id)
-    limite = crud.get_plan_user_limit(tenant.plan)
+    """Crea un usuario dentro del Tenant activo, hasta el máximo permitido."""
+    limite = crud.MAX_USERS_PER_TENANT
     usuarios_actuales = crud.count_users(db=db, tenant_id=current_user.tenant_id)
 
     if usuarios_actuales >= limite:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=(
-                f"Tu plan '{tenant.plan}' permite un máximo de {limite} "
-                f"usuario{'s' if limite != 1 else ''}. "
-                f"Ya tenés {usuarios_actuales}. Mejorá tu plan para agregar más usuarios."
+                f"El espacio de trabajo permite un máximo de {limite} usuarios. "
+                f"Ya tenés {usuarios_actuales}."
             )
         )
 

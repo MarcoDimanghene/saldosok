@@ -17,6 +17,7 @@ import {
   createSalesInvoice,
 } from '../../services/invoiceService';
 import { createCollection, createPayment } from '../../services/paymentService';
+import { INVOICE_LETTERS } from '../../config/appConfig';
 import {
   fetchCompanies,
   fetchDashboard,
@@ -362,7 +363,17 @@ const Invoices = () => {
                 </FormField>
                 <FormField>
                   <label htmlFor="sales-letter">Letra</label>
-                  <FormInput id="sales-letter" value={salesForm.letter} maxLength="1" onChange={(event) => setSalesForm({ ...salesForm, letter: event.target.value })} required />
+                  <FormInput
+                    as="select"
+                    id="sales-letter"
+                    value={salesForm.letter}
+                    onChange={(event) => setSalesForm({ ...salesForm, letter: event.target.value })}
+                    required
+                  >
+                    {INVOICE_LETTERS.map((letter) => (
+                      <option key={letter} value={letter}>{letter}</option>
+                    ))}
+                  </FormInput>
                 </FormField>
                 <FormField>
                   <label htmlFor="sales-pos">Punto de venta</label>
@@ -482,7 +493,20 @@ const Invoices = () => {
                     </FormField>
                     <FormField>
                       <label htmlFor="formal-purchase-letter">Letra</label>
-                      <FormInput id="formal-purchase-letter" value={formalPurchaseForm.letter} maxLength="1" onChange={(event) => setFormalPurchaseForm({ ...formalPurchaseForm, letter: event.target.value.toUpperCase() })} required />
+                      <FormInput
+                        as="select"
+                        id="formal-purchase-letter"
+                        value={formalPurchaseForm.letter}
+                        onChange={(event) => setFormalPurchaseForm({
+                          ...formalPurchaseForm,
+                          letter: event.target.value,
+                        })}
+                        required
+                      >
+                        {INVOICE_LETTERS.map((letter) => (
+                          <option key={letter} value={letter}>{letter}</option>
+                        ))}
+                      </FormInput>
                     </FormField>
                     <FormField>
                       <label htmlFor="formal-purchase-pos">Punto de venta</label>
@@ -549,10 +573,17 @@ const Invoices = () => {
                     <TableCell><StatusBadge $status={invoice.estado === 'pagado' ? 'saldada' : invoice.estado === 'vencida' ? 'vencida' : 'pendiente'}>{invoice.estado || 'pendiente'}</StatusBadge></TableCell>
                     <TableCell>
                       <ActionCell>
-                        <Button type="button" $variant="secondary" onClick={() => toggleSettlement(invoice.id, 'collection')}>
+                        <Button
+                          type="button"
+                          $variant="secondary"
+                          onClick={() => toggleSettlement(invoice.id, 'collection')}
+                          disabled={invoice.estado === 'pagado' || isSubmitting}
+                        >
                           Registrar cobro
                         </Button>
-                        {settlement?.invoiceId === invoice.id && settlement.type === 'collection' && (
+                        {invoice.estado !== 'pagado'
+                          && settlement?.invoiceId === invoice.id
+                          && settlement.type === 'collection' && (
                           <ActionForm onSubmit={(event) => handleSettlement(event, invoice.id, 'collection')}>
                             <FormInput name="amount" type="number" min="0.01" step="0.01" placeholder="Importe" required />
                             <Button type="submit" disabled={isSubmitting}><TbArrowDownLeft /> Cobrar</Button>
@@ -593,7 +624,12 @@ const Invoices = () => {
                     <TableCell><StatusBadge $status={invoice.estado === 'pagado' ? 'saldada' : invoice.estado === 'vencida' ? 'vencida' : 'pendiente'}>{invoice.estado || 'pendiente'}</StatusBadge></TableCell>
                     <TableCell>
                       <ActionCell>
-                        <Button type="button" $variant="secondary" onClick={() => toggleSettlement(invoice.id, 'payment')}>
+                        <Button
+                          type="button"
+                          $variant="secondary"
+                          onClick={() => toggleSettlement(invoice.id, 'payment')}
+                          disabled={invoice.estado === 'pagado' || isSubmitting}
+                        >
                           Registrar pago
                         </Button>
                         {!invoice.factura_recibida && (
@@ -604,7 +640,9 @@ const Invoices = () => {
                             <TbFileInvoice aria-hidden="true" /> Completar factura
                           </Button>
                         )}
-                        {settlement?.invoiceId === invoice.id && settlement.type === 'payment' && (
+                        {invoice.estado !== 'pagado'
+                          && settlement?.invoiceId === invoice.id
+                          && settlement.type === 'payment' && (
                           <ActionForm onSubmit={(event) => handleSettlement(event, invoice.id, 'payment')}>
                             <FormInput name="amount" type="number" min="0.01" step="0.01" placeholder="Importe" required />
                             <Button type="submit" disabled={isSubmitting}><TbArrowUpRight /> Pagar</Button>
@@ -612,7 +650,11 @@ const Invoices = () => {
                         )}
                         {formalizing?.id === invoice.id && (
                           <ActionForm onSubmit={(event) => handleCompletePurchase(event, invoice.id)}>
-                            <FormInput name="letter" maxLength="1" placeholder="Letra" aria-label="Letra" required />
+                            <FormInput as="select" name="letter" aria-label="Letra" required>
+                              {INVOICE_LETTERS.map((letter) => (
+                                <option key={letter} value={letter}>{letter}</option>
+                              ))}
+                            </FormInput>
                             <FormInput name="point_of_sale" type="number" min="0" placeholder="Punto de venta" aria-label="Punto de venta" required />
                             <FormInput name="invoice_number" type="number" min="1" placeholder="Número" aria-label="Número de factura" required />
                             <FormInput name="issue_date" type="date" aria-label="Fecha de emisión" required />

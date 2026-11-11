@@ -6,24 +6,7 @@ from .. import models, schemas
 # CRUD TENANTS
 # ==========================================
 
-# Planes disponibles y su límite de usuarios
-PLAN_USER_LIMITS = {
-    "basico": 1,
-    "moderado": 5,
-    "premium": 10,
-}
-
-def get_plan_user_limit(plan: str) -> int:
-    """Devuelve el límite de usuarios del plan (1, 5 o 10)."""
-    return PLAN_USER_LIMITS.get(plan, PLAN_USER_LIMITS["basico"])
-
-def can_add_user(db: Session, tenant_id: int) -> bool:
-    """Verifica si el tenant aún puede crear usuarios según su plan."""
-    tenant = get_tenant(db, tenant_id=tenant_id)
-    if not tenant:
-        return False
-    usuarios_actuales = db.query(models.User).filter(models.User.tenant_id == tenant_id).count()
-    return usuarios_actuales < get_plan_user_limit(tenant.plan)
+MAX_USERS_PER_TENANT = 10
 
 # 1. Buscar tenant por CUIT (Útil para validación previa a la creación)
 def get_tenant_by_cuit(db: Session, cuit: str) -> Optional[models.Tenant]:
@@ -96,7 +79,7 @@ def create_tenant_with_admin(
     register: schemas.TenantRegister,
     hashed_password: str,
 ):
-    db_tenant = models.Tenant(plan=register.plan)
+    db_tenant = models.Tenant()
     db.add(db_tenant)
     db.flush()
 

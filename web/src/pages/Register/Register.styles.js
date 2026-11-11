@@ -85,14 +85,6 @@ const formControlStyles = `
 
 export const FormInput = styled.input`${formControlStyles}`;
 
-export const FormSelect = styled.select`
-  ${formControlStyles}
-
-  option {
-    color: ${COLORS.ON_SURFACE};
-  }
-`;
-
 export const FieldError = styled.span`
   color: #fda4af;
   font-size: 0.85rem;

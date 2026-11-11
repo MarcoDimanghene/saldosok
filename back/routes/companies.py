@@ -13,11 +13,6 @@ router = APIRouter(
 
 @router.post("/", response_model = schemas.CompanyResponse)
 def creteate_company(company: schemas.CompanyCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-  if company.is_issuer:
-      raise HTTPException(
-          status_code=400,
-          detail="Las razones sociales emisoras se administran desde la importación Excel.",
-      )
   # Verificamos duplicidad por CUIT dentro del tenant
   db_company = None
   if company.tax_id:
@@ -69,12 +64,6 @@ def update_company_route(company_id: int, company: schemas.CompanyUpdate, db: Se
     )
     if existing is None:
         raise HTTPException(status_code=404, detail="Empresa no encontrada")
-    if existing.es_emisor or company.is_issuer:
-        raise HTTPException(
-            status_code=400,
-            detail="Las razones sociales emisoras se administran desde la importación Excel.",
-        )
-
     role_fields = {"is_client", "is_supplier", "is_issuer"}
     if "tax_id" in company.model_fields_set or role_fields.intersection(company.model_fields_set):
         tax_id = company.tax_id if "tax_id" in company.model_fields_set else existing.cuit
@@ -108,17 +97,6 @@ def update_company_route(company_id: int, company: schemas.CompanyUpdate, db: Se
 
 @router.delete("/{company_id}")
 def delete_company_route(company_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    issuer = db.query(models.Company).filter(
-        models.Company.id == company_id,
-        models.Company.tenant_id == current_user.tenant_id,
-        models.Company.es_emisor.is_(True),
-    ).first()
-    if issuer:
-        raise HTTPException(
-            status_code=400,
-            detail="Las razones sociales emisoras se administran desde la importación Excel.",
-        )
-
     # 1. Ejecutamos el borrado en el CRUD
     exito = companies.delete_company(db, tenant_id=current_user.tenant_id, company_id=company_id)
 

@@ -77,7 +77,6 @@ def seed():
             razon_social="Empresa Demo SA",
             condicion_iva="Responsable Inscripto",
             domicilio="Av. Corrientes 1234, CABA",
-            plan="premium",
         )
         db.add(tenant)
         db.flush()  # le asigna id sin commitear

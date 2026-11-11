@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import styled from 'styled-components';
 import { Button } from '../../component/ui/UIComponents';
+import { CONDICIONES_IVA } from '../../config/appConfig';
 import { useAuth } from '../../hook/useAuth';
 
 const ProfileContainer = styled.div`
@@ -32,7 +33,8 @@ const ProfileField = styled.label`
   color: rgba(255, 255, 255, 0.72);
   font-size: 0.9rem;
 
-  input {
+  input,
+  select {
     width: 100%;
     padding: 0.7rem 0.8rem;
     border: 1px solid rgba(255, 255, 255, 0.16);
@@ -97,8 +99,8 @@ const Profile = () => {
     <ProfileContainer>
       <h1>Perfil de organización</h1>
       <p>
-        Estos son los datos de tu cuenta. Las razones sociales emisoras se administran
-        por separado y podés elegirlas en cada factura de venta.
+        Estos son los datos fiscales de tu organización. Los emisores se administran en Empresas
+        y podés elegirlos en cada factura de venta.
       </p>
       {message && (
         <ProfileMessage $error={message.error} role={message.error ? 'alert' : 'status'}>
@@ -130,12 +132,19 @@ const Profile = () => {
             />
           </ProfileField>
           <ProfileField>
-            Condición de IVA
-            <input
+            Condición frente al IVA
+            <select
               value={form.condicion_iva}
               onChange={setField('condicion_iva')}
-              maxLength={50}
-            />
+            >
+              <option value="">Seleccionar condición (opcional)</option>
+              {form.condicion_iva && !CONDICIONES_IVA.includes(form.condicion_iva) && (
+                <option value={form.condicion_iva}>{form.condicion_iva}</option>
+              )}
+              {CONDICIONES_IVA.map((condition) => (
+                <option key={condition} value={condition}>{condition}</option>
+              ))}
+            </select>
           </ProfileField>
           <ProfileField>
             Domicilio

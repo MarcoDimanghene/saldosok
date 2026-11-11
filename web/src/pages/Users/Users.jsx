@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { PLANES } from '../../config/appConfig';
+import { useEffect, useState } from 'react';
+import { MAX_USERS_PER_TENANT } from '../../config/appConfig';
 import { useAuth } from '../../hook/useAuth';
 import {
   createUser,
@@ -36,11 +36,7 @@ const Users = () => {
   const [resetTarget, setResetTarget] = useState(null);
   const [resetPassword, setResetPassword] = useState('');
 
-  const plan = useMemo(
-    () => PLANES.find((item) => item.id === tenant?.plan),
-    [tenant?.plan],
-  );
-  const userLimit = plan?.usuarios ?? 0;
+  const userLimit = MAX_USERS_PER_TENANT;
   const atLimit = users.length >= userLimit;
 
   useEffect(() => {
@@ -167,11 +163,6 @@ const Users = () => {
         <p>Administra las cuentas que comparten los datos de {tenant?.razon_social || 'tu espacio de trabajo'}.</p>
       </PageHeader>
 
-      {!plan && (
-        <StatusMessage $error role="alert">
-          No se reconoce el plan asignado a la empresa.
-        </StatusMessage>
-      )}
       {message && (
         <StatusMessage $error={message.error} role={message.error ? 'alert' : 'status'}>
           {message.text}
@@ -182,7 +173,7 @@ const Users = () => {
         <Panel>
           <h2>Agregar usuario</h2>
           <QuotaText>
-            Plan <strong>{plan?.nombre || tenant?.plan || 'sin plan'}</strong>: {users.length} de{' '}
+            Usuarios: {users.length} de{' '}
             <strong>{userLimit}</strong> cuentas utilizadas. El administrador cuenta dentro del límite.
           </QuotaText>
           <UserForm onSubmit={handleCreateUser}>
@@ -232,9 +223,9 @@ const Users = () => {
             </FormField>
             <PrimaryButton
               type="submit"
-              disabled={!plan || atLimit || isSubmitting || isLoading}
+              disabled={atLimit || isSubmitting || isLoading}
             >
-              {isSubmitting ? 'Creando usuario...' : atLimit ? 'Límite del plan alcanzado' : 'Agregar usuario'}
+              {isSubmitting ? 'Creando usuario...' : atLimit ? 'Límite de usuarios alcanzado' : 'Agregar usuario'}
             </PrimaryButton>
           </UserForm>
         </Panel>

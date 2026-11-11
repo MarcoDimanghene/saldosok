@@ -2,7 +2,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   TbBuilding,
   TbBuildingBank,
-  TbCreditCard,
   TbFileInvoice,
   TbFileSpreadsheet,
   TbLayoutDashboard,
@@ -124,18 +123,6 @@ const Sidebar = () => {
             >
               <TbUsers aria-hidden="true" />
               <NavLabel>Usuarios</NavLabel>
-            </NavItem>
-          )}
-          {user?.is_tenant_admin && (
-            <NavItem
-              as={Link}
-              to="/plans"
-              $active={isActive('/plans')}
-              aria-current={isActive('/plans') ? 'page' : undefined}
-              title="Planes"
-            >
-              <TbCreditCard aria-hidden="true" />
-              <NavLabel>Planes</NavLabel>
             </NavItem>
           )}
         </NavList>

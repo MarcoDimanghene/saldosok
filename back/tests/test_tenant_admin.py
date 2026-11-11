@@ -82,74 +82,8 @@ class TenantAdminTests(unittest.TestCase):
         self.assertFalse(models.User.__table__.c.is_tenant_admin.default.arg)
         self.assertFalse(models.User.__table__.c.is_superadmin.default.arg)
 
-    def test_regular_user_cannot_change_tenant_plan(self):
-        tenant = models.Tenant(
-            cuit="30111111111",
-            razon_social="Organización",
-            condicion_iva="Responsable Inscripto",
-        )
-        self.session.add(tenant)
-        self.session.commit()
-        user = SimpleNamespace(
-            tenant_id=tenant.id,
-            is_tenant_admin=False,
-        )
-
-        with self.assertRaises(HTTPException) as error:
-            update_current_tenant(
-                TenantUpdate(plan="premium"),
-                self.session,
-                user,
-            )
-
-        self.assertEqual(error.exception.status_code, 403)
-        self.assertEqual(tenant.plan, "basico")
-
-    def test_tenant_admin_can_change_tenant_plan(self):
-        tenant = models.Tenant(
-            cuit="30111111111",
-            razon_social="Organización",
-            condicion_iva="Responsable Inscripto",
-        )
-        self.session.add(tenant)
-        self.session.commit()
-        user = SimpleNamespace(
-            tenant_id=tenant.id,
-            is_tenant_admin=True,
-        )
-
-        updated = update_current_tenant(
-            TenantUpdate(plan="premium"),
-            self.session,
-            user,
-        )
-
-        self.assertEqual(updated.plan, "premium")
-
-    def test_tenant_admin_cannot_downgrade_below_current_user_count(self):
-        tenant = models.Tenant(
-            cuit="30111111111",
-            razon_social="Organización",
-            condicion_iva="Responsable Inscripto",
-            plan="moderado",
-        )
-        self.session.add(tenant)
-        self.session.flush()
-        self.session.add_all([
-            models.User(username="adminplan", hashed_password="hash", tenant_id=tenant.id, is_tenant_admin=True),
-            models.User(username="miembroplan", hashed_password="hash", tenant_id=tenant.id),
-        ])
-        self.session.commit()
-        user = SimpleNamespace(tenant_id=tenant.id, is_tenant_admin=True)
-
-        with self.assertRaises(HTTPException) as error:
-            update_current_tenant(TenantUpdate(plan="basico"), self.session, user)
-
-        self.assertEqual(error.exception.status_code, 400)
-        self.assertEqual(tenant.plan, "moderado")
-
     def test_account_admin_profile_changes_do_not_create_or_modify_issuers(self):
-        tenant = models.Tenant(plan="basico")
+        tenant = models.Tenant()
         self.session.add(tenant)
         self.session.commit()
         user = SimpleNamespace(tenant_id=tenant.id, is_tenant_admin=True)
@@ -194,16 +128,9 @@ class TenantAdminTests(unittest.TestCase):
         self.assertEqual(issuer.cuit, "20111111111")
         self.assertEqual(issuer.razon_social, "Emisor independiente")
 
-    def test_plan_user_limits_match_product_tiers(self):
-        from back.crud.tenants import get_plan_user_limit
-
-        self.assertEqual(get_plan_user_limit("basico"), 1)
-        self.assertEqual(get_plan_user_limit("moderado"), 5)
-        self.assertEqual(get_plan_user_limit("premium"), 10)
-
     @patch("back.routes.user.issue_email_verification")
     def test_admin_can_create_individual_member_accounts_with_unique_email(self, verify_email):
-        tenant = models.Tenant(plan="moderado")
+        tenant = models.Tenant()
         self.session.add(tenant)
         self.session.flush()
         admin = models.User(
@@ -235,26 +162,35 @@ class TenantAdminTests(unittest.TestCase):
         self.assertIn("confirmar su correo", result["message"])
         verify_email.assert_called_once_with(self.session, created)
 
-    def test_basic_plan_includes_owner_and_rejects_an_additional_user(self):
-        tenant = models.Tenant(plan="basico")
+    def test_tenant_maximum_is_ten_users_including_the_owner(self):
+        tenant = models.Tenant()
         self.session.add(tenant)
         self.session.flush()
         admin = models.User(
-            username="titular-basico",
-            email="titular-basico@example.com",
+            username="titular-limite",
+            email="titular-limite@example.com",
             hashed_password="hash",
             tenant_id=tenant.id,
             is_tenant_admin=True,
         )
-        self.session.add(admin)
+        members = [
+            models.User(
+                username=f"miembro{index}",
+                email=f"miembro{index}@example.com",
+                hashed_password="hash",
+                tenant_id=tenant.id,
+            )
+            for index in range(9)
+        ]
+        self.session.add_all([admin, *members])
         self.session.commit()
 
         with self.assertRaises(HTTPException) as error:
             create_user_for_tenant(
                 UserCreate(
                     nombre="Integrante",
-                    username="integrante-basico",
-                    email="integrante-basico@example.com",
+                    username="integrante-limite",
+                    email="integrante-limite@example.com",
                     password="password",
                 ),
                 self.session,
@@ -262,6 +198,7 @@ class TenantAdminTests(unittest.TestCase):
             )
 
         self.assertEqual(error.exception.status_code, 400)
+        self.assertIn("máximo de 10 usuarios", error.exception.detail)
 
 
 if __name__ == "__main__":

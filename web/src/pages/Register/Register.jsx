@@ -1,6 +1,5 @@
 import { ErrorMessage, Field, Formik } from 'formik';
 import { useState } from 'react';
-import { PLANES } from '../../config/appConfig';
 import { useAuth } from '../../hook/useAuth';
 import {
   BackLink,
@@ -10,7 +9,6 @@ import {
   FormField,
   FormInput,
   FormLabel,
-  FormSelect,
   RegisterCard,
   RegisterContainer,
   RegisterDescription,
@@ -67,7 +65,6 @@ const Register = () => {
         username: values.username.trim(),
         email: values.email.trim(),
         password: values.password,
-        plan: values.plan,
       });
       setRegistrationResult(result);
     } catch (error) {
@@ -134,13 +131,6 @@ const Register = () => {
                   autoComplete="email"
                   required
                 />
-                <RegisterField name="plan" label="Plan" as={FormSelect}>
-                  {PLANES.map((plan) => (
-                    <option key={plan.id} value={plan.id}>
-                      {plan.nombre} — hasta {plan.usuarios} {plan.usuarios === 1 ? 'usuario' : 'usuarios'}
-                    </option>
-                  ))}
-                </RegisterField>
                 <RegisterField
                   name="password"
                   label="Contraseña"

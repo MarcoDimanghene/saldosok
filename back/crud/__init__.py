@@ -28,9 +28,7 @@ from .tenants import (
     get_tenants,
     create_tenant,
     create_tenant_with_admin,
-    get_plan_user_limit,
-    can_add_user,
-    get_plan_user_limit,
+    MAX_USERS_PER_TENANT,
     update_tenant,
     delete_tenant
 )

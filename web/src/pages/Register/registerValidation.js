@@ -5,7 +5,6 @@ export const registerInitialValues = {
   email: '',
   password: '',
   confirmPassword: '',
-  plan: 'basico',
 };
 
 export function validateRegister(values) {
@@ -29,9 +28,5 @@ export function validateRegister(values) {
   if (values.password !== values.confirmPassword) {
     errors.confirmPassword = 'Las contraseñas no coinciden.';
   }
-  if (!['basico', 'moderado', 'premium'].includes(values.plan)) {
-    errors.plan = 'Selecciona un plan válido.';
-  }
-
   return errors;
 }

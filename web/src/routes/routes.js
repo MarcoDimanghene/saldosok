@@ -70,7 +70,6 @@ export const ROUTE_MAP = {
   root: '/',
   login: '/login',
   register: '/register',
-  plans: '/plans',
   dashboard: '/dashboard',
   users: '/users',
   companies: '/companies',

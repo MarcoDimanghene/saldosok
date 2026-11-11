@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { TbBuilding, TbBuildingStore, TbDeviceFloppy, TbEdit, TbPlus, TbX } from 'react-icons/tb';
 import { Button } from '../../component/ui/UIComponents';
 import { createCompany, updateCompany } from '../../services/companyService';
+import { CONDICIONES_IVA } from '../../config/appConfig';
 import { fetchCompanies } from '../../store';
 import {
   CompanyGrid,
@@ -28,6 +29,7 @@ const initialForm = {
   provincia: '',
   is_client: false,
   is_supplier: false,
+  is_issuer: false,
 };
 
 const Companies = () => {
@@ -52,12 +54,12 @@ const Companies = () => {
     setMessage(null);
 
     const taxId = form.tax_id.replace(/\D/g, '');
-    const taxIdRequired = !form.is_supplier || form.is_client;
+    const taxIdRequired = !form.is_supplier || form.is_client || form.is_issuer;
     if ((taxIdRequired && !taxId) || (taxId && taxId.length !== 11)) {
       setMessage({ error: true, text: 'El CUIT/CUIL debe tener 11 dígitos, excepto para proveedores sin identificación.' });
       return;
     }
-    if (!form.is_client && !form.is_supplier) {
+    if (!form.is_client && !form.is_supplier && !form.is_issuer) {
       setMessage({ error: true, text: 'Selecciona al menos un rol para esta empresa.' });
       return;
     }
@@ -108,6 +110,7 @@ const Companies = () => {
       provincia: company.provincia || '',
       is_client: company.es_cliente,
       is_supplier: company.es_proveedor,
+      is_issuer: company.es_emisor,
     });
     setMessage(null);
   };
@@ -122,7 +125,7 @@ const Companies = () => {
     <>
       <PageHeader>
         <h1>Empresas</h1>
-        <p>Administra tu cartera de clientes y proveedores. Las razones sociales emisoras se importan desde la plantilla Excel y se seleccionan por CUIT en cada venta.</p>
+        <p>Administra tus clientes, proveedores y empresas emisoras. Selecciona la empresa emisora en cada venta.</p>
       </PageHeader>
 
       {message && (
@@ -148,7 +151,7 @@ const Companies = () => {
             </FormField>
             <FormField>
               <label htmlFor="company-tax-id">
-                CUIT/CUIL{form.is_supplier && !form.is_client ? ' (opcional)' : ''}
+                CUIT/CUIL{form.is_supplier && !form.is_client && !form.is_issuer ? ' (opcional)' : ''}
               </label>
               <FormInput
                 id="company-tax-id"
@@ -160,16 +163,25 @@ const Companies = () => {
                   ...form,
                   tax_id: event.target.value.replace(/\D/g, '').slice(0, 11),
                 })}
-                required={!form.is_supplier || form.is_client}
+                required={!form.is_supplier || form.is_client || form.is_issuer}
               />
             </FormField>
             <FormField>
-              <label htmlFor="company-tax-condition">Condición de IVA</label>
+              <label htmlFor="company-tax-condition">Condición frente al IVA</label>
               <FormInput
+                as="select"
                 id="company-tax-condition"
                 value={form.tax_condition}
                 onChange={(event) => setForm({ ...form, tax_condition: event.target.value })}
-              />
+              >
+                <option value="">Seleccionar condición (opcional)</option>
+                {form.tax_condition && !CONDICIONES_IVA.includes(form.tax_condition) && (
+                  <option value={form.tax_condition}>{form.tax_condition}</option>
+                )}
+                {CONDICIONES_IVA.map((condition) => (
+                  <option key={condition} value={condition}>{condition}</option>
+                ))}
+              </FormInput>
             </FormField>
             <FormField>
               <label htmlFor="company-address">Domicilio</label>
@@ -213,6 +225,14 @@ const Companies = () => {
                     onChange={(event) => setForm({ ...form, is_supplier: event.target.checked })}
                   />
                   Proveedor
+                </RoleChoice>
+                <RoleChoice>
+                  <input
+                    type="checkbox"
+                    checked={form.is_issuer}
+                    onChange={(event) => setForm({ ...form, is_issuer: event.target.checked })}
+                  />
+                  Emisor
                 </RoleChoice>
               </CompanyRoles>
             </FormField>
@@ -264,18 +284,15 @@ const Companies = () => {
                         </span>
                       ))}
                       {!roles.length && <span>Sin rol asignado</span>}
-                      {company.es_emisor && <span>Administrada desde Excel</span>}
                     </CompanyRoles>
-                    {!company.es_emisor && (
-                      <Button
-                        type="button"
-                        $variant="secondary"
-                        onClick={() => startEditing(company)}
-                        aria-label={`Editar ${company.razon_social}`}
-                      >
-                        <TbEdit aria-hidden="true" /> Editar
-                      </Button>
-                    )}
+                    <Button
+                      type="button"
+                      $variant="secondary"
+                      onClick={() => startEditing(company)}
+                      aria-label={`Editar ${company.razon_social}`}
+                    >
+                      <TbEdit aria-hidden="true" /> Editar
+                    </Button>
                   </CompanyItem>
                 );
               })}

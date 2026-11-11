@@ -43,21 +43,6 @@ export const HeaderActions = styled.div`
   gap: 0.75rem;
 `;
 
-export const HeaderMeta = styled.span`
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.55rem 0.75rem;
-  border: 1px solid rgba(0, 229, 255, 0.15);
-  border-radius: ${RADIUS.FULL};
-  color: rgba(255, 255, 255, 0.78);
-  font-size: 0.85rem;
-
-  svg {
-    color: #00e5ff;
-  }
-`;
-
 export const SummaryGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

@@ -26,6 +26,11 @@ export const Button = styled.button`
   justify-content: center;
   gap: 8px;
 
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
   /* Botón Primario */
   ${(props) =>
     (!props.$variant || props.$variant === 'primary') &&

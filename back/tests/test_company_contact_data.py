@@ -1,7 +1,6 @@
 import unittest
 from types import SimpleNamespace
 
-from fastapi import HTTPException
 from pydantic import ValidationError
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -197,7 +196,7 @@ class CompanyContactDataTests(unittest.TestCase):
             2,
         )
 
-    def test_issuer_is_only_managed_from_organization_profile(self):
+    def test_issuers_can_be_created_updated_and_deleted_from_companies(self):
         issuer = models.Company(
             cuit=self.tenant.cuit,
             razon_social=self.tenant.razon_social,
@@ -208,30 +207,27 @@ class CompanyContactDataTests(unittest.TestCase):
         self.session.commit()
         user = SimpleNamespace(tenant_id=self.tenant.id)
 
-        with self.assertRaises(HTTPException) as create_error:
-            creteate_company(
-                schemas.CompanyCreate(
-                    tax_id="20333333333",
-                    legal_name="Emisor manual",
-                    is_issuer=True,
-                ),
-                self.session,
-                user,
-            )
-        self.assertEqual(create_error.exception.status_code, 400)
+        created = creteate_company(
+            schemas.CompanyCreate(
+                tax_id="20333333333",
+                legal_name="Emisor manual",
+                is_issuer=True,
+            ),
+            self.session,
+            user,
+        )
+        self.assertTrue(created.es_emisor)
 
-        with self.assertRaises(HTTPException) as update_error:
-            update_company_route(
-                issuer.id,
-                schemas.CompanyUpdate(legal_name="Nombre editado"),
-                self.session,
-                user,
-            )
-        self.assertEqual(update_error.exception.status_code, 400)
+        updated = update_company_route(
+            issuer.id,
+            schemas.CompanyUpdate(legal_name="Nombre editado"),
+            self.session,
+            user,
+        )
+        self.assertEqual(updated.razon_social, "Nombre editado")
 
-        with self.assertRaises(HTTPException) as delete_error:
-            delete_company_route(issuer.id, self.session, user)
-        self.assertEqual(delete_error.exception.status_code, 400)
+        result = delete_company_route(issuer.id, self.session, user)
+        self.assertEqual(result["detail"], "Empresa eliminada correctamente")
 
 
 if __name__ == "__main__":

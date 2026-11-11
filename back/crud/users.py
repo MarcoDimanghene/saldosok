@@ -52,7 +52,7 @@ def get_users(db: Session, tenant_id: int, skip: int = 0, limit: int = 100):
         .all()
     )
 
-# 3b. Contar usuarios activos del Tenant (para validar el límite del plan)
+# 3b. Contar los usuarios del Tenant para validar su límite
 def count_users(db: Session, tenant_id: int) -> int:
     return db.query(models.User).filter(models.User.tenant_id == tenant_id).count()
 
