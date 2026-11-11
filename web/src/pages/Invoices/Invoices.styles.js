@@ -69,6 +69,31 @@ export const SectionHeading = styled.div`
   }
 `;
 
+export const FilterBar = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+
+  @media (max-width: 760px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+export const FilterField = styled.label`
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.35rem;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.82rem;
+  font-weight: 600;
+`;
+
 export const Form = styled.form`
   display: flex;
   flex-direction: column;
@@ -167,7 +192,12 @@ export const InvoiceList = styled.div`
     color: #fca5a5;
   }
 
-  td span {
+  .invoice-status--settled {
+    background: rgba(52, 211, 153, 0.16);
+    color: #6ee7b7;
+  }
+
+  td span:not([class]) {
     display: block;
     margin-top: 0.25rem;
     color: rgba(255, 255, 255, 0.58);

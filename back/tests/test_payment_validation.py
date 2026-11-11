@@ -16,6 +16,7 @@ from back.crud.payments import (
     update_payment,
 )
 from back.schemas.payments import CollectionCreate, PaymentCreate
+from back.schemas.invoices import PurchaseInvoiceResponse, SalesInvoiceResponse
 from database.database import Base
 
 
@@ -141,6 +142,16 @@ class PaymentValidationTests(unittest.TestCase):
         delete_collection(self.session, self.tenant.id, collection.id)
 
         self.assertEqual(self.sales_invoice.estado, "pendiente")
+
+    def test_invoice_responses_include_collected_and_paid_totals(self):
+        create_collection(self.session, self.tenant.id, self.collection_data("35.50"))
+        create_payment(self.session, self.tenant.id, self.payment_data("42.25"))
+
+        sales_response = SalesInvoiceResponse.model_validate(self.sales_invoice)
+        purchase_response = PurchaseInvoiceResponse.model_validate(self.purchase_invoice)
+
+        self.assertEqual(sales_response.monto_cobrado, Decimal("35.50"))
+        self.assertEqual(purchase_response.monto_pagado, Decimal("42.25"))
 
 
 if __name__ == "__main__":

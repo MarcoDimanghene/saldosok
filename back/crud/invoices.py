@@ -1,5 +1,5 @@
 from fastapi import HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from back import models, schemas
 from sqlalchemy import cast, String, func
 
@@ -65,6 +65,7 @@ def get_sales_invoice(db: Session, tenant_id: int, invoice_id: int):
 def get_listsales_invoices(db: Session, tenant_id: int, skip: int = 0, limit: int = 100):
     return (
         db.query(models.SalesInvoice)
+        .options(selectinload(models.SalesInvoice.cobros))
         .filter(models.SalesInvoice.tenant_id == tenant_id)
         .offset(skip)
         .limit(limit)
@@ -207,6 +208,7 @@ def get_purchase_invoice(db: Session, tenant_id: int, invoice_id: int):
 def get_listpurchase_invoice(db: Session, tenant_id: int, skip: int = 0, limit: int = 100):
     return (
         db.query(models.PurchaseInvoice)
+        .options(selectinload(models.PurchaseInvoice.pagos))
         .filter(models.PurchaseInvoice.tenant_id == tenant_id)
         .offset(skip)
         .limit(limit)

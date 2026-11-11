@@ -32,6 +32,8 @@ import {
   FormField,
   FormGrid,
   FormInput,
+  FilterBar,
+  FilterField,
   InvoiceList,
   PageHeader,
   Panel,
@@ -40,6 +42,7 @@ import {
   TabButton,
   Tabs,
 } from './Invoices.styles';
+import { filterInvoices } from './invoiceFilters';
 
 const today = new Date().toISOString().slice(0, 10);
 const initialSalesForm = {
@@ -76,6 +79,13 @@ const currency = new Intl.NumberFormat('es-AR', {
   maximumFractionDigits: 2,
 });
 const formatCurrency = (amount) => currency.format(Number(amount) || 0);
+const remainingBalance = (total, paid) => Math.max(Number(total || 0) - Number(paid || 0), 0);
+const initialInvoiceFilters = {
+  status: 'all',
+  dateFrom: '',
+  dateTo: '',
+  company: 'all',
+};
 
 const Invoices = () => {
   const dispatch = useDispatch();
@@ -101,6 +111,7 @@ const Invoices = () => {
   const [formalizing, setFormalizing] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
+  const [invoiceFilters, setInvoiceFilters] = useState(initialInvoiceFilters);
 
   const issuers = useMemo(() => companies.filter((company) => company.es_emisor), [companies]);
   const clients = useMemo(() => companies.filter((company) => company.es_cliente), [companies]);
@@ -111,6 +122,20 @@ const Invoices = () => {
   const companyNames = useMemo(
     () => new Map(companies.map((company) => [company.id, company.razon_social])),
     [companies],
+  );
+  const filterCompanies = useMemo(() => {
+    const availableCompanies = tab === 'sales'
+      ? [...issuers, ...clients]
+      : suppliers;
+    return [...new Map(availableCompanies.map((company) => [company.id, company])).values()];
+  }, [clients, issuers, suppliers, tab]);
+  const visibleInvoices = useMemo(
+    () => filterInvoices(
+      tab === 'sales' ? salesInvoices : purchaseInvoices,
+      invoiceFilters,
+      tab,
+    ),
+    [invoiceFilters, purchaseInvoices, salesInvoices, tab],
   );
 
   const refreshSales = useCallback(async () => {
@@ -546,8 +571,79 @@ const Invoices = () => {
       <Panel as="section">
         <SectionHeading>
           <h2>{tab === 'sales' ? 'Facturas de venta' : 'Compras y facturas de proveedor'}</h2>
-          <span>{isLoading ? 'Cargando…' : `${tab === 'sales' ? salesInvoices.length : purchaseInvoices.length} registros`}</span>
+          <span>
+            {isLoading
+              ? 'Cargando…'
+              : `${visibleInvoices.length} de ${tab === 'sales' ? salesInvoices.length : purchaseInvoices.length} registros`}
+          </span>
         </SectionHeading>
+        <FilterBar aria-label="Filtros de facturas">
+          <FilterField>
+            Estado
+            <FormInput
+              as="select"
+              value={invoiceFilters.status}
+              onChange={(event) => setInvoiceFilters({
+                ...invoiceFilters,
+                status: event.target.value,
+              })}
+            >
+              <option value="all">Todos</option>
+              <option value="pendiente">Pendiente</option>
+              <option value="parcial">Parcial</option>
+              <option value="pagado">{tab === 'sales' ? 'Cobrado' : 'Pagado'}</option>
+              <option value="vencida">Vencida</option>
+            </FormInput>
+          </FilterField>
+          <FilterField>
+            Desde
+            <FormInput
+              type="date"
+              value={invoiceFilters.dateFrom}
+              onChange={(event) => setInvoiceFilters({
+                ...invoiceFilters,
+                dateFrom: event.target.value,
+              })}
+            />
+          </FilterField>
+          <FilterField>
+            Hasta
+            <FormInput
+              type="date"
+              value={invoiceFilters.dateTo}
+              onChange={(event) => setInvoiceFilters({
+                ...invoiceFilters,
+                dateTo: event.target.value,
+              })}
+            />
+          </FilterField>
+          <FilterField>
+            Empresa
+            <FormInput
+              as="select"
+              value={invoiceFilters.company}
+              onChange={(event) => setInvoiceFilters({
+                ...invoiceFilters,
+                company: event.target.value,
+              })}
+            >
+              <option value="all">Todas</option>
+              {filterCompanies.map((company) => (
+                <option key={company.id} value={company.id}>{company.razon_social}</option>
+              ))}
+            </FormInput>
+          </FilterField>
+          <Button
+            type="button"
+            $variant="secondary"
+            onClick={() => setInvoiceFilters(initialInvoiceFilters)}
+            disabled={Object.entries(initialInvoiceFilters).every(
+              ([key, value]) => invoiceFilters[key] === value,
+            )}
+          >
+            Limpiar
+          </Button>
+        </FilterBar>
         {isLoading ? (
           <p role="status">Cargando movimientos…</p>
         ) : tab === 'sales' ? (
@@ -563,7 +659,7 @@ const Invoices = () => {
                 </tr>
               </thead>
               <tbody>
-                {salesInvoices.map((invoice) => (
+                {visibleInvoices.map((invoice) => (
                   <TableRow
                     key={invoice.id}
                     className={invoice.estado === 'pendiente' ? 'invoice-row--pending' : undefined}
@@ -572,13 +668,23 @@ const Invoices = () => {
                     <TableCell>
                       {companyNames.get(invoice.emisor_id) || 'Emisor anterior'} → {companyNames.get(invoice.cliente_id) || 'Cliente'}
                     </TableCell>
-                    <TableCell className="numeric">{formatCurrency(invoice.monto_total)}</TableCell>
+                    <TableCell className="numeric">
+                      {formatCurrency(invoice.monto_total)}
+                      <span>
+                        Resta cobrar: {formatCurrency(remainingBalance(
+                          invoice.monto_total,
+                          invoice.monto_cobrado,
+                        ))}
+                      </span>
+                    </TableCell>
                     <TableCell>
                       <StatusBadge
-                        className={invoice.estado === 'pendiente' ? 'invoice-status--pending' : undefined}
+                        className={invoice.estado === 'pendiente'
+                          ? 'invoice-status--pending'
+                          : invoice.estado === 'pagado' ? 'invoice-status--settled' : undefined}
                         $status={invoice.estado === 'pagado' ? 'saldada' : invoice.estado === 'vencida' ? 'vencida' : 'pendiente'}
                       >
-                        {invoice.estado || 'pendiente'}
+                        {invoice.estado === 'pagado' ? 'Cobrado' : invoice.estado || 'pendiente'}
                       </StatusBadge>
                     </TableCell>
                     <TableCell>
@@ -605,7 +711,13 @@ const Invoices = () => {
                 ))}
               </tbody>
             </StyledTable>
-            {!salesInvoices.length && <EmptyState>Aún no hay facturas de venta.</EmptyState>}
+            {!visibleInvoices.length && (
+              <EmptyState>
+                {salesInvoices.length
+                  ? 'No hay facturas que coincidan con los filtros.'
+                  : 'Aún no hay facturas de venta.'}
+              </EmptyState>
+            )}
           </InvoiceList>
         ) : (
           <InvoiceList>
@@ -620,7 +732,7 @@ const Invoices = () => {
                 </tr>
               </thead>
               <tbody>
-                {purchaseInvoices.map((invoice) => (
+                {visibleInvoices.map((invoice) => (
                   <TableRow
                     key={invoice.id}
                     className={invoice.estado === 'pendiente' ? 'invoice-row--pending' : undefined}
@@ -633,10 +745,20 @@ const Invoices = () => {
                       {companyNames.get(invoice.proveedor_id) || 'Proveedor'}
                       {invoice.concepto && <span>{invoice.concepto}</span>}
                     </TableCell>
-                    <TableCell className="numeric">{formatCurrency(invoice.monto_total)}</TableCell>
+                    <TableCell className="numeric">
+                      {formatCurrency(invoice.monto_total)}
+                      <span>
+                        Resta pagar: {formatCurrency(remainingBalance(
+                          invoice.monto_total,
+                          invoice.monto_pagado,
+                        ))}
+                      </span>
+                    </TableCell>
                     <TableCell>
                       <StatusBadge
-                        className={invoice.estado === 'pendiente' ? 'invoice-status--pending' : undefined}
+                        className={invoice.estado === 'pendiente'
+                          ? 'invoice-status--pending'
+                          : invoice.estado === 'pagado' ? 'invoice-status--settled' : undefined}
                         $status={invoice.estado === 'pagado' ? 'saldada' : invoice.estado === 'vencida' ? 'vencida' : 'pendiente'}
                       >
                         {invoice.estado || 'pendiente'}
@@ -690,7 +812,13 @@ const Invoices = () => {
                 ))}
               </tbody>
             </StyledTable>
-            {!purchaseInvoices.length && <EmptyState>Aún no hay compras registradas.</EmptyState>}
+            {!visibleInvoices.length && (
+              <EmptyState>
+                {purchaseInvoices.length
+                  ? 'No hay compras que coincidan con los filtros.'
+                  : 'Aún no hay compras registradas.'}
+              </EmptyState>
+            )}
           </InvoiceList>
         )}
       </Panel>

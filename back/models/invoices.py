@@ -13,6 +13,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database.database import Base
+from decimal import Decimal
 
 # ==========================================
 # 1. TABLA FACTURAS DE COMPRA
@@ -52,6 +53,14 @@ class PurchaseInvoice(Base):
     # Relaciones
     organizacion = relationship("Tenant")
     proveedor = relationship("Company")
+    pagos = relationship("PurchasePayment", back_populates="factura")
+
+    @property
+    def monto_pagado(self):
+        return sum(
+            (pago.monto or Decimal("0.00") for pago in self.pagos),
+            Decimal("0.00"),
+        )
 
 
 # ==========================================
@@ -87,3 +96,11 @@ class SalesInvoice(Base):
     organizacion = relationship("Tenant")
     cliente = relationship("Company", foreign_keys=[cliente_id])
     emisor = relationship("Company", foreign_keys=[emisor_id])
+    cobros = relationship("SalesCollection", back_populates="factura")
+
+    @property
+    def monto_cobrado(self):
+        return sum(
+            (cobro.monto or Decimal("0.00") for cobro in self.cobros),
+            Decimal("0.00"),
+        )

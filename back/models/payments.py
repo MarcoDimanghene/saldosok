@@ -24,7 +24,7 @@ class SalesCollection(Base):
 
     # Relaciones
     organizacion = relationship("Tenant")
-    factura = relationship("SalesInvoice")
+    factura = relationship("SalesInvoice", back_populates="cobros")
 
 
 # ==========================================
@@ -48,4 +48,4 @@ class PurchasePayment(Base):
 
     # Relaciones
     organizacion = relationship("Tenant")
-    factura = relationship("PurchaseInvoice")
+    factura = relationship("PurchaseInvoice", back_populates="pagos")
