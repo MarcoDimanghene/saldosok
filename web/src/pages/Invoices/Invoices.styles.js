@@ -197,6 +197,15 @@ export const InvoiceList = styled.div`
     color: #6ee7b7;
   }
 
+  .invoice-date-countdown {
+    color: #a5f3fc;
+    font-weight: 600;
+  }
+
+  .invoice-date-countdown--overdue {
+    color: #fca5a5;
+  }
+
   td span:not([class]) {
     display: block;
     margin-top: 0.25rem;

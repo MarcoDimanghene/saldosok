@@ -43,6 +43,7 @@ import {
   Tabs,
 } from './Invoices.styles';
 import { filterInvoices } from './invoiceFilters';
+import { formatDateCountdown, formatInvoiceDate } from './invoiceDates';
 
 const today = new Date().toISOString().slice(0, 10);
 const initialSalesForm = {
@@ -664,7 +665,17 @@ const Invoices = () => {
                     key={invoice.id}
                     className={invoice.estado === 'pendiente' ? 'invoice-row--pending' : undefined}
                   >
-                    <TableCell>{invoice.letra || '—'} {invoice.punto_venta || '—'}-{invoice.nro_factura || '—'}</TableCell>
+                    <TableCell>
+                      {invoice.letra || '—'} {invoice.punto_venta || '—'}-{invoice.nro_factura || '—'}
+                      {invoice.fecha_pago_approx && (
+                        <>
+                          <span>Fecha aprox. de cobro: {formatInvoiceDate(invoice.fecha_pago_approx)}</span>
+                          <span className="invoice-date-countdown">
+                            {formatDateCountdown(invoice.fecha_pago_approx, 'collection')}
+                          </span>
+                        </>
+                      )}
+                    </TableCell>
                     <TableCell>
                       {companyNames.get(invoice.emisor_id) || 'Emisor anterior'} → {companyNames.get(invoice.cliente_id) || 'Cliente'}
                     </TableCell>
@@ -740,6 +751,14 @@ const Invoices = () => {
                     <TableCell>
                       <strong>{invoice.numero_interno || `Compra ${invoice.id}`}</strong>
                       <span>{invoice.factura_recibida ? `Factura ${invoice.letra || ''} ${invoice.punto_venta || ''}-${invoice.nro_factura || ''}` : 'Factura formal pendiente'}</span>
+                      {invoice.fecha_vencimiento && (
+                        <>
+                          <span>Vencimiento: {formatInvoiceDate(invoice.fecha_vencimiento)}</span>
+                          <span className={`invoice-date-countdown${formatDateCountdown(invoice.fecha_vencimiento, 'due')?.startsWith('Vencida') ? ' invoice-date-countdown--overdue' : ''}`}>
+                            {formatDateCountdown(invoice.fecha_vencimiento, 'due')}
+                          </span>
+                        </>
+                      )}
                     </TableCell>
                     <TableCell>
                       {companyNames.get(invoice.proveedor_id) || 'Proveedor'}
