@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import * as authService from '../services/authService';
-import { getMyTenant, registerTenant, updateMyTenant } from '../services/tenantService';
+import { getMyTenant, updateMyTenant } from '../services/tenantService';
 import { clearToken, getToken, setToken } from '../util/tokenStorage';
 import { AuthContext } from './authContext';
 import { clearFinance } from '../store';
@@ -47,11 +47,6 @@ export function AuthProvider({ children }) {
     return data;
   }, [dispatch]);
 
-  const register = useCallback(async (formData) => {
-    dispatch(clearFinance());
-    return registerTenant(formData);
-  }, [dispatch]);
-
   const updateTenant = useCallback(async (updates) => {
     const updatedTenant = await updateMyTenant(updates);
     setTenant(updatedTenant);
@@ -82,8 +77,8 @@ export function AuthProvider({ children }) {
   }, [token, tenant, user, logout]);
 
   const value = useMemo(
-    () => ({ token, user, tenant, isAuthenticated, isLoading, login, register, updateTenant, logout }),
-    [token, user, tenant, isAuthenticated, isLoading, login, register, updateTenant, logout]
+    () => ({ token, user, tenant, isAuthenticated, isLoading, login, updateTenant, logout }),
+    [token, user, tenant, isAuthenticated, isLoading, login, updateTenant, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

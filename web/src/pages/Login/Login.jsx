@@ -98,10 +98,8 @@ const Login = () => {
         </Formik>
 
         <LoginLinks>
-          <LoginLink to="/register">¿Todavía no tienes cuenta? Regístrate</LoginLink>
           <LoginLink to="/forgot-password">¿Olvidaste tu contraseña?</LoginLink>
           <LoginLink to="/verify-email">Confirmar correo para recuperación</LoginLink>
-          <LoginLink to="/">Volver al inicio</LoginLink>
         </LoginLinks>
       </LoginCard>
     </LoginContainer>

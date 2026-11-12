@@ -112,7 +112,6 @@ const EmailVerification = () => {
 
         <LoginLinks>
           <LoginLink as={Link} to="/login">Ir a iniciar sesión</LoginLink>
-          <LoginLink as={Link} to="/">Volver al inicio</LoginLink>
         </LoginLinks>
       </LoginCard>
     </LoginContainer>

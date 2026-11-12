@@ -26,7 +26,6 @@ test('navigation paths match the routes rendered by AppRoutes', () => {
   assert.deepEqual(ROUTE_MAP, {
     root: '/',
     login: '/login',
-    register: '/register',
     dashboard: '/dashboard',
     users: '/users',
     companies: '/companies',
@@ -87,7 +86,6 @@ test('API endpoint paths match the FastAPI routers', () => {
   );
 
   assert.deepEqual(TENANTS_ROUTES, {
-    register: '/tenants/register',
     list: '/tenants/',
     create: '/tenants/',
     me: '/tenants/me',

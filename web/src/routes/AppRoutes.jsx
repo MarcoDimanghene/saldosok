@@ -1,7 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import Landing from '../pages/Landing/Landing';
 import Login from '../pages/Login/Login';
-import Register from '../pages/Register/Register';
 import Dashboard from '../pages/Dashboard/Dashboard';
 import Users from '../pages/Users/Users';
 import Companies from '../pages/Companies/Companies';
@@ -18,9 +16,8 @@ import ProtectedRoute from './ProtectedRoute';
 const AppRoutes = () => {
   return (
     <Routes>
-      <Route path="/" element={<Landing />} />
+      <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
       <Route path="/verify-email" element={<EmailVerification />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
@@ -53,7 +50,7 @@ const AppRoutes = () => {
           )}
         />
       </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 };

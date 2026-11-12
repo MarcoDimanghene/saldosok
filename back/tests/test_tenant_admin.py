@@ -2,18 +2,19 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from fastapi import HTTPException
+from fastapi import FastAPI, HTTPException
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from back import models
 from back.crud.tenants import create_tenant_with_admin
 from back.crud.users import create_user
-from back.routes.tenants import update_current_tenant
+from back.routes.tenants import router as tenants_router, update_current_tenant
 from back.routes.user import create_user_for_tenant
 from back.schemas.tenants import TenantRegister, TenantUpdate
 from back.schemas.user import UserCreate, UserUpdate
-from database.database import Base
+from database.database import Base, get_db
 from database.security import get_current_tenant_admin
 
 
@@ -39,6 +40,25 @@ class TenantAdminTests(unittest.TestCase):
         user = SimpleNamespace(is_tenant_admin=True)
 
         self.assertIs(get_current_tenant_admin(user), user)
+
+    def test_tenant_registration_requires_superadmin_authentication(self):
+        app = FastAPI()
+        app.include_router(tenants_router)
+        app.dependency_overrides[get_db] = lambda: self.session
+
+        with TestClient(app) as client:
+            response = client.post(
+                "/tenants/register",
+                json={
+                    "nombre": "Administradora",
+                    "dni": "30123456",
+                    "username": "adminnueva",
+                    "email": "admin@example.com",
+                    "password": "secure-password",
+                },
+            )
+
+        self.assertEqual(response.status_code, 401)
 
     def test_public_user_schemas_cannot_assign_admin_roles(self):
         self.assertNotIn("is_tenant_admin", UserCreate.model_fields)

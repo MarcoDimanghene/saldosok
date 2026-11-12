@@ -30,7 +30,6 @@ export const USERS_ROUTES = {
 };
 
 export const TENANTS_ROUTES = {
-  register: '/tenants/register',
   list: '/tenants/',
   create: '/tenants/',
   me: '/tenants/me',
@@ -69,7 +68,6 @@ export const IMPORTS_ROUTES = {
 export const ROUTE_MAP = {
   root: '/',
   login: '/login',
-  register: '/register',
   dashboard: '/dashboard',
   users: '/users',
   companies: '/companies',

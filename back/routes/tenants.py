@@ -23,10 +23,15 @@ router = APIRouter(
 
 
 # -------------------------------------------------------------
-# Registro Público: crear Tenant + primer usuario admin
+# Alta de Tenant + primer usuario admin (solo SuperAdmin)
 # -------------------------------------------------------------
 
-@router.post("/register", response_model=schemas.TenantRegisterResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register",
+    response_model=schemas.TenantRegisterResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(get_current_superadmin)],
+)
 def register_tenant_with_user(
     register: schemas.TenantRegister,
     db: Session = Depends(get_db),
