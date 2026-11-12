@@ -9,3 +9,5 @@ export const createPendingPurchase = (purchase) =>
   apiClient.post(INVOICES_ROUTES.purchasePendingCreate, purchase);
 export const completePendingPurchase = (invoiceId, invoice) =>
   apiClient.put(INVOICES_ROUTES.purchaseComplete(invoiceId), invoice);
+export const updatePurchaseInvoice = (invoiceId, invoice) =>
+  apiClient.patch(INVOICES_ROUTES.purchaseUpdate(invoiceId), invoice);

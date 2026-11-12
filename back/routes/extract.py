@@ -167,8 +167,12 @@ def extract_invoice(
 
     if receptor_cuit_norm and receptor_cuit_norm == tenant_cuit:
         draft.tipo = "compra"
-        draft.receiver_id = tenant.id if tenant else None
-        draft.receiver_name = tenant.razon_social if tenant else None
+        draft.receiver_id = receptor_db.id if receptor_db else None
+        draft.receiver_name = (
+            receptor_db.razon_social
+            if receptor_db
+            else (tenant.razon_social if tenant else None)
+        )
         if emisor_db:
             draft.issuer_id = emisor_db.id
             draft.issuer_name = emisor_db.razon_social

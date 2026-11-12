@@ -34,6 +34,7 @@ import {
   FormInput,
   FilterBar,
   FilterField,
+  InvoiceDetailButton,
   InvoiceList,
   PageHeader,
   Panel,
@@ -44,8 +45,8 @@ import {
 } from './Invoices.styles';
 import { filterInvoices } from './invoiceFilters';
 import { formatDateCountdown, formatInvoiceDate } from './invoiceDates';
-import { useAuth } from '../../hook/useAuth';
 import InvoiceNotes from './InvoiceNotes';
+import InvoiceDetailsDialog from './InvoiceDetailsDialog';
 
 const today = new Date().toISOString().slice(0, 10);
 const initialSalesForm = {
@@ -60,12 +61,14 @@ const initialSalesForm = {
 };
 const initialPurchaseForm = {
   supplier_id: '',
+  receiver_id: '',
   concept: '',
   total_amount: '',
   due_date: '',
 };
 const initialFormalPurchaseForm = {
   issuer_id: '',
+  receiver_id: '',
   letter: 'A',
   point_of_sale: '',
   invoice_number: '',
@@ -98,7 +101,6 @@ const initialInvoiceFilters = {
 };
 
 const Invoices = () => {
-  const { tenant } = useAuth();
   const dispatch = useDispatch();
   const {
     items: companies,
@@ -120,6 +122,7 @@ const Invoices = () => {
   const [purchaseMode, setPurchaseMode] = useState('pending');
   const [settlement, setSettlement] = useState(null);
   const [formalizing, setFormalizing] = useState(null);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
   const [invoiceFilters, setInvoiceFilters] = useState(initialInvoiceFilters);
@@ -135,7 +138,9 @@ const Invoices = () => {
     [companies],
   );
   const filterCompanies = useMemo(() => {
-    const availableCompanies = tab === 'purchases' ? suppliers : [...issuers, ...clients];
+    const availableCompanies = tab === 'purchases'
+      ? [...suppliers, ...issuers]
+      : [...issuers, ...clients];
     return [...new Map(availableCompanies.map((company) => [company.id, company])).values()];
   }, [clients, issuers, suppliers, tab]);
   const visibleInvoices = useMemo(
@@ -146,6 +151,10 @@ const Invoices = () => {
     ),
     [invoiceFilters, purchaseInvoices, salesInvoices, tab],
   );
+  const selectedInvoiceRecord = selectedInvoice
+    ? (selectedInvoice.direction === 'sales' ? salesInvoices : purchaseInvoices)
+      .find((invoice) => invoice.id === selectedInvoice.id) || selectedInvoice.invoice
+    : null;
 
   const refreshSales = useCallback(async () => {
     await Promise.all([
@@ -206,6 +215,7 @@ const Invoices = () => {
       const purchase = await createPendingPurchase({
         ...purchaseForm,
         supplier_id: Number(purchaseForm.supplier_id),
+        receiver_id: Number(purchaseForm.receiver_id),
         total_amount: purchaseForm.total_amount,
         due_date: purchaseForm.due_date || null,
       });
@@ -230,6 +240,7 @@ const Invoices = () => {
       await createPurchaseInvoice({
         ...formalPurchaseForm,
         issuer_id: Number(formalPurchaseForm.issuer_id),
+        receiver_id: Number(formalPurchaseForm.receiver_id),
         point_of_sale: Number(formalPurchaseForm.point_of_sale),
         invoice_number: Number(formalPurchaseForm.invoice_number),
         total_amount: formalPurchaseForm.total_amount,
@@ -311,6 +322,16 @@ const Invoices = () => {
     setFormalizing(null);
   };
 
+  const selectTab = (nextTab) => {
+    setTab(nextTab);
+    setSelectedInvoice(null);
+  };
+
+  const closeInvoiceDetails = useCallback(() => setSelectedInvoice(null), []);
+  const refreshInvoiceData = useCallback(async (direction) => {
+    await (direction === 'sales' ? refreshSales() : refreshPurchases());
+  }, [refreshPurchases, refreshSales]);
+
   return (
     <>
       <PageHeader>
@@ -336,7 +357,7 @@ const Invoices = () => {
           role="tab"
           aria-selected={tab === 'sales'}
           $active={tab === 'sales'}
-          onClick={() => setTab('sales')}
+          onClick={() => selectTab('sales')}
         >
           <TbArrowUpRight aria-hidden="true" /> Ventas
         </TabButton>
@@ -345,7 +366,7 @@ const Invoices = () => {
           role="tab"
           aria-selected={tab === 'purchases'}
           $active={tab === 'purchases'}
-          onClick={() => setTab('purchases')}
+          onClick={() => selectTab('purchases')}
         >
           <TbArrowDownLeft aria-hidden="true" /> Compras
         </TabButton>
@@ -354,7 +375,7 @@ const Invoices = () => {
           role="tab"
           aria-selected={tab === 'notes'}
           $active={tab === 'notes'}
-          onClick={() => setTab('notes')}
+          onClick={() => selectTab('notes')}
         >
           <TbFileInvoice aria-hidden="true" /> Notas
         </TabButton>
@@ -467,9 +488,10 @@ const Invoices = () => {
             <h2>Registrar una compra</h2>
             <span>Registra la factura recibida o carga la compra mientras esperas el comprobante.</span>
           </SectionHeading>
-          {!suppliers.length ? (
+          {!suppliers.length || !issuers.length ? (
             <EmptyState>
-              Registra un proveedor en <Link to="/companies">Empresas</Link> antes de cargar una compra.
+              Registra un proveedor y una empresa destinataria habilitada como emisora en{' '}
+              <Link to="/companies">Empresas</Link> antes de cargar una compra.
             </EmptyState>
           ) : (
             <>
@@ -512,6 +534,24 @@ const Invoices = () => {
                       </FormInput>
                     </FormField>
                     <FormField>
+                      <label htmlFor="purchase-recipient">Empresa destinataria</label>
+                      <FormInput
+                        as="select"
+                        id="purchase-recipient"
+                        value={purchaseForm.receiver_id}
+                        onChange={(event) => setPurchaseForm({
+                          ...purchaseForm,
+                          receiver_id: event.target.value,
+                        })}
+                        required
+                      >
+                        <option value="">Seleccionar empresa</option>
+                        {issuers.map((company) => (
+                          <option key={company.id} value={company.id}>{company.razon_social}</option>
+                        ))}
+                      </FormInput>
+                    </FormField>
+                    <FormField>
                       <label htmlFor="purchase-concept">Concepto</label>
                       <FormInput id="purchase-concept" value={purchaseForm.concept} onChange={(event) => setPurchaseForm({ ...purchaseForm, concept: event.target.value })} maxLength="300" required />
                     </FormField>
@@ -542,6 +582,24 @@ const Invoices = () => {
                       >
                         <option value="">Seleccionar proveedor</option>
                         {suppliers.map((company) => (
+                          <option key={company.id} value={company.id}>{company.razon_social}</option>
+                        ))}
+                      </FormInput>
+                    </FormField>
+                    <FormField>
+                      <label htmlFor="formal-purchase-recipient">Empresa destinataria</label>
+                      <FormInput
+                        as="select"
+                        id="formal-purchase-recipient"
+                        value={formalPurchaseForm.receiver_id}
+                        onChange={(event) => setFormalPurchaseForm({
+                          ...formalPurchaseForm,
+                          receiver_id: event.target.value,
+                        })}
+                        required
+                      >
+                        <option value="">Seleccionar empresa</option>
+                        {issuers.map((company) => (
                           <option key={company.id} value={company.id}>{company.razon_social}</option>
                         ))}
                       </FormInput>
@@ -700,9 +758,17 @@ const Invoices = () => {
                     className={invoice.estado === 'pendiente' ? 'invoice-row--pending' : undefined}
                   >
                     <TableCell>
-                      <strong>
+                      <InvoiceDetailButton
+                        type="button"
+                        aria-label={`Ver detalle de ${INVOICE_TYPE_LABELS[invoice.tipo_comprobante] || 'factura'} ${invoiceNumberLabel(invoice)}`}
+                        onClick={() => setSelectedInvoice({
+                          direction: 'sales',
+                          id: invoice.id,
+                          invoice,
+                        })}
+                      >
                         {INVOICE_TYPE_LABELS[invoice.tipo_comprobante] || 'Factura'} {invoiceNumberLabel(invoice)}
-                      </strong>
+                      </InvoiceDetailButton>
                       {invoice.factura_origen_id && (
                         <span>
                           Vinculada a: {linkedInvoiceNumber(salesInvoices, invoice.factura_origen_id)}
@@ -793,12 +859,22 @@ const Invoices = () => {
                     className={invoice.estado === 'pendiente' ? 'invoice-row--pending' : undefined}
                   >
                     <TableCell>
-                      <strong>{invoice.numero_interno || `Compra ${invoice.id}`}</strong>
-                      <span>
-                        {invoice.factura_recibida
-                          ? `${INVOICE_TYPE_LABELS[invoice.tipo_comprobante] || 'Factura'} ${invoiceNumberLabel(invoice)}`
-                          : 'Factura formal pendiente'}
-                      </span>
+                      <InvoiceDetailButton
+                        type="button"
+                        aria-label={`Ver detalle de ${INVOICE_TYPE_LABELS[invoice.tipo_comprobante] || 'compra'} ${invoiceNumberLabel(invoice)}`}
+                        onClick={() => setSelectedInvoice({
+                          direction: 'purchases',
+                          id: invoice.id,
+                          invoice,
+                        })}
+                      >
+                        <strong>{invoice.numero_interno || `Compra ${invoice.id}`}</strong>
+                        <span>
+                          {invoice.factura_recibida
+                            ? `${INVOICE_TYPE_LABELS[invoice.tipo_comprobante] || 'Factura'} ${invoiceNumberLabel(invoice)}`
+                            : 'Factura formal pendiente'}
+                        </span>
+                      </InvoiceDetailButton>
                       {invoice.factura_origen_id && (
                         <span>
                           Vinculada a: {linkedInvoiceNumber(purchaseInvoices, invoice.factura_origen_id)}
@@ -815,7 +891,9 @@ const Invoices = () => {
                     </TableCell>
                     <TableCell>
                       {companyNames.get(invoice.proveedor_id) || 'Proveedor'}
-                      <span>Destinatario: {tenant?.razon_social || 'tu organización'}</span>
+                      <span>
+                        Destinatario: {companyNames.get(invoice.receptor_id) || 'Sin destinatario registrado'}
+                      </span>
                       {invoice.concepto && <span>{invoice.concepto}</span>}
                     </TableCell>
                     <TableCell className="numeric">
@@ -895,6 +973,19 @@ const Invoices = () => {
           </InvoiceList>
         )}
       </Panel>
+      )}
+      {selectedInvoiceRecord && selectedInvoice && (
+        <InvoiceDetailsDialog
+          key={`${selectedInvoice.direction}-${selectedInvoice.id}`}
+          invoice={selectedInvoiceRecord}
+          direction={selectedInvoice.direction}
+          companies={companies}
+          companyNames={companyNames}
+          salesInvoices={salesInvoices}
+          purchaseInvoices={purchaseInvoices}
+          onClose={closeInvoiceDetails}
+          onUpdated={refreshInvoiceData}
+        />
       )}
     </>
   );

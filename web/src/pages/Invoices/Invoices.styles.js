@@ -69,6 +69,79 @@ export const SectionHeading = styled.div`
   }
 `;
 
+export const InvoiceDetailButton = styled.button`
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #a5f3fc;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+
+  &:hover {
+    color: #00e5ff;
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #00e5ff;
+    outline-offset: 3px;
+  }
+`;
+
+export const InvoiceDialog = styled.dialog`
+  width: min(780px, calc(100vw - 2rem));
+  max-height: 90vh;
+  margin: auto;
+  padding: 0;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: ${RADIUS.LG};
+  background: ${COLORS.PRIMARY_CONTAINER};
+  color: ${COLORS.SURFACE_CARD};
+
+  &::backdrop {
+    background: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(4px);
+  }
+`;
+
+export const InvoiceDialogContent = styled.div`
+  padding: 1.5rem;
+`;
+
+export const InvoiceDetailGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+export const InvoiceDetailItem = styled.div`
+  min-width: 0;
+  padding: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: ${RADIUS.MD};
+  background: rgba(0, 0, 0, 0.12);
+
+  span {
+    display: block;
+    margin-bottom: 0.3rem;
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 0.78rem;
+  }
+
+  strong {
+    overflow-wrap: anywhere;
+    color: #fff;
+    font-size: 0.92rem;
+  }
+`;
+
 export const FilterBar = styled.div`
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
@@ -232,6 +305,26 @@ export const ActionForm = styled.form`
   width: min(100%, 260px);
   flex-direction: column;
   gap: 0.5rem;
+`;
+
+export const MovementList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+`;
+
+export const MovementCard = styled.section`
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: ${RADIUS.MD};
+  background: rgba(0, 0, 0, 0.12);
+
+  h3 {
+    margin-bottom: 0.75rem;
+    color: #00e5ff;
+    font-size: 0.95rem;
+  }
 `;
 
 export const EmptyState = styled.p`

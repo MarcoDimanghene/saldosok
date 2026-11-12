@@ -126,6 +126,10 @@ def get_collections_by_invoice_id(db: Session, tenant_id: int, invoice_id: int):
             models.SalesCollection.tenant_id == tenant_id,
             models.SalesCollection.factura_venta_id == invoice_id,
         )
+        .order_by(
+            models.SalesCollection.fecha_cobro.desc(),
+            models.SalesCollection.id.desc(),
+        )
         .all()
     )
 
@@ -241,6 +245,10 @@ def get_payments_by_invoice_id(db: Session, tenant_id: int, invoice_id: int):
         .filter(
             models.PurchasePayment.tenant_id == tenant_id,
             models.PurchasePayment.factura_compra_id == invoice_id,
+        )
+        .order_by(
+            models.PurchasePayment.fecha_pago.desc(),
+            models.PurchasePayment.id.desc(),
         )
         .all()
     )

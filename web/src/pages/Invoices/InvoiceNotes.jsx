@@ -44,8 +44,13 @@ const InvoiceNotes = ({
   purchaseInvoices,
   isLoading,
   onCreated,
+  initialDirection = 'sales',
+  originInvoice,
 }) => {
-  const [form, setForm] = useState(initialForm);
+  const [form, setForm] = useState(() => ({
+    ...initialForm,
+    direction: initialDirection,
+  }));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
   const companyNames = useMemo(
@@ -53,6 +58,7 @@ const InvoiceNotes = ({
     [companies],
   );
   const originInvoices = useMemo(() => {
+    if (originInvoice) return [originInvoice];
     const invoices = form.direction === 'sales' ? salesInvoices : purchaseInvoices;
     return invoices.filter((invoice) => (
       (!invoice.tipo_comprobante || invoice.tipo_comprobante === 'factura')
@@ -60,8 +66,8 @@ const InvoiceNotes = ({
         ? Boolean(invoice.emisor_id && invoice.cliente_id)
         : invoice.factura_recibida)
     ));
-  }, [form.direction, purchaseInvoices, salesInvoices]);
-  const selectedOrigin = originInvoices.find(
+  }, [form.direction, originInvoice, purchaseInvoices, salesInvoices]);
+  const selectedOrigin = originInvoice || originInvoices.find(
     (invoice) => invoice.id === Number(form.originId),
   );
 
@@ -97,6 +103,7 @@ const InvoiceNotes = ({
         await createPurchaseInvoice({
           ...invoiceData,
           issuer_id: selectedOrigin.proveedor_id,
+          receiver_id: selectedOrigin.receptor_id ?? null,
           due_date: form.dueDate || null,
         });
       }
@@ -129,19 +136,21 @@ const InvoiceNotes = ({
         </StatusMessage>
       )}
       <FormGrid>
-        <FormField>
-          <label htmlFor="note-direction">Operación relacionada</label>
-          <FormInput
-            as="select"
-            id="note-direction"
-            value={form.direction}
-            onChange={(event) => handleDirectionChange(event.target.value)}
-            required
-          >
-            <option value="sales">Venta</option>
-            <option value="purchases">Compra</option>
-          </FormInput>
-        </FormField>
+        {!originInvoice && (
+          <FormField>
+            <label htmlFor="note-direction">Operación relacionada</label>
+            <FormInput
+              as="select"
+              id="note-direction"
+              value={form.direction}
+              onChange={(event) => handleDirectionChange(event.target.value)}
+              required
+            >
+              <option value="sales">Venta</option>
+              <option value="purchases">Compra</option>
+            </FormInput>
+          </FormField>
+        )}
         <FormField>
           <label htmlFor="note-type">Tipo de nota</label>
           <FormInput
@@ -155,33 +164,42 @@ const InvoiceNotes = ({
             <option value="nota_debito">Nota de débito</option>
           </FormInput>
         </FormField>
-        <FormField>
-          <label htmlFor="note-origin">Factura de origen</label>
-          <FormInput
-            as="select"
-            id="note-origin"
-            value={form.originId}
-            onChange={(event) => setForm({ ...form, originId: event.target.value })}
-            disabled={isLoading || !originInvoices.length}
-            required
-          >
-            <option value="">Seleccionar factura</option>
-            {originInvoices.map((invoice) => {
-              const companyId = form.direction === 'sales'
-                ? invoice.cliente_id
-                : invoice.proveedor_id;
-              const number = formatInvoiceNumber(invoice);
-              const companyName = companyNames.get(companyId)
-                || (form.direction === 'sales' ? 'Cliente' : 'Proveedor');
+        {originInvoice ? (
+          <FormField>
+            <label>Factura de origen</label>
+            <span>
+              {formatInvoiceNumber(originInvoice)} · {currency.format(Number(originInvoice.monto_total) || 0)}
+            </span>
+          </FormField>
+        ) : (
+          <FormField>
+            <label htmlFor="note-origin">Factura de origen</label>
+            <FormInput
+              as="select"
+              id="note-origin"
+              value={form.originId}
+              onChange={(event) => setForm({ ...form, originId: event.target.value })}
+              disabled={isLoading || !originInvoices.length}
+              required
+            >
+              <option value="">Seleccionar factura</option>
+              {originInvoices.map((invoice) => {
+                const companyId = form.direction === 'sales'
+                  ? invoice.cliente_id
+                  : invoice.proveedor_id;
+                const number = formatInvoiceNumber(invoice);
+                const companyName = companyNames.get(companyId)
+                  || (form.direction === 'sales' ? 'Cliente' : 'Proveedor');
 
-              return (
-                <option key={invoice.id} value={invoice.id}>
-                  {number} · {companyName} · {currency.format(Number(invoice.monto_total) || 0)}
-                </option>
-              );
-            })}
-          </FormInput>
-        </FormField>
+                return (
+                  <option key={invoice.id} value={invoice.id}>
+                    {number} · {companyName} · {currency.format(Number(invoice.monto_total) || 0)}
+                  </option>
+                );
+              })}
+            </FormInput>
+          </FormField>
+        )}
         <FormField>
           <label htmlFor="note-letter">Letra</label>
           <FormInput

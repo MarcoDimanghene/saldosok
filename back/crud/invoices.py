@@ -223,9 +223,12 @@ def create_purchase_invoice(db: Session, tenant_id: int, invoice: schemas.Purcha
         invoice.issuer_id,
         require_supplier=True,
     )
+    if invoice.receiver_id is not None:
+        _require_tenant_company(db, tenant_id, invoice.receiver_id)
     db_invoice = models.PurchaseInvoice(
         tenant_id=tenant_id,                      # Inyección directa del tenant
         proveedor_id=invoice.issuer_id,           # El emisor de la compra es el proveedor
+        receptor_id=invoice.receiver_id,
         letra=invoice.letter,
         punto_venta=invoice.point_of_sale,
         nro_factura=invoice.invoice_number,
@@ -258,9 +261,12 @@ def create_pending_purchase(
         purchase.supplier_id,
         require_supplier=True,
     )
+    if purchase.receiver_id is not None:
+        _require_tenant_company(db, tenant_id, purchase.receiver_id)
     db_invoice = models.PurchaseInvoice(
         tenant_id=tenant_id,
         proveedor_id=purchase.supplier_id,
+        receptor_id=purchase.receiver_id,
         monto_total=purchase.total_amount,
         fecha_vencimiento=purchase.due_date,
         moneda=purchase.currency,
@@ -329,6 +335,7 @@ def complete_pending_purchase(
 # Mapeo de campos del schema (inglés) a las columnas de la DB (español) para compras
 MAPEO_COMPRAS = {
     "issuer_id": "proveedor_id",
+    "receiver_id": "receptor_id",
     "letter": "letra",
     "point_of_sale": "punto_venta",
     "invoice_number": "nro_factura",
@@ -360,6 +367,8 @@ def update_purchase_invoice(db: Session, tenant_id: int, invoice_id: int, invoic
             update_data["issuer_id"],
             require_supplier=True,
         )
+    if update_data.get("receiver_id") is not None:
+        _require_tenant_company(db, tenant_id, update_data["receiver_id"])
     if "total_amount" in update_data:
         paid = db.query(
             func.coalesce(func.sum(models.PurchasePayment.monto), 0)

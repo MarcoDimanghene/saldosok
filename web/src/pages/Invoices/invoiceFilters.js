@@ -10,7 +10,7 @@ export function filterInvoices(invoices, filters, type) {
     if (filters.company !== 'all') {
       const companyId = type === 'sales'
         ? [invoice.emisor_id, invoice.cliente_id]
-        : [invoice.proveedor_id];
+        : [invoice.proveedor_id, invoice.receptor_id];
       if (!companyId.some((id) => String(id) === filters.company)) return false;
     }
 

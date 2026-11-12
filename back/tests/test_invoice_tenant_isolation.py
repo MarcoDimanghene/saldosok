@@ -81,15 +81,56 @@ class InvoiceTenantIsolationTests(unittest.TestCase):
             total_amount=Decimal("100.00"),
         )
 
-    def purchase_invoice_data(self, issuer_id):
+    def purchase_invoice_data(self, issuer_id, receiver_id=None):
         return PurchaseInvoiceCreate(
             issuer_id=issuer_id,
+            receiver_id=receiver_id,
             letter="A",
             point_of_sale=1,
             invoice_number=1,
             issue_date=date.today(),
             total_amount=Decimal("100.00"),
         )
+
+    def test_purchase_invoice_stores_its_recipient_company(self):
+        invoice = create_purchase_invoice(
+            self.session,
+            self.tenant.id,
+            self.purchase_invoice_data(
+                self.local_company.id,
+                receiver_id=self.local_company.id,
+            ),
+        )
+
+        self.assertEqual(invoice.receptor_id, self.local_company.id)
+
+    def test_purchase_invoice_rejects_recipient_from_another_tenant(self):
+        with self.assertRaises(HTTPException) as error:
+            create_purchase_invoice(
+                self.session,
+                self.tenant.id,
+                self.purchase_invoice_data(
+                    self.local_company.id,
+                    receiver_id=self.foreign_company.id,
+                ),
+            )
+
+        self.assertEqual(error.exception.status_code, 404)
+        self.assertEqual(self.session.query(models.PurchaseInvoice).count(), 0)
+
+    def test_pending_purchase_stores_its_recipient_company(self):
+        purchase = create_pending_purchase(
+            self.session,
+            self.tenant.id,
+            PurchasePendingCreate(
+                supplier_id=self.local_company.id,
+                receiver_id=self.local_company.id,
+                concept="Servicio",
+                total_amount=Decimal("100.00"),
+            ),
+        )
+
+        self.assertEqual(purchase.receptor_id, self.local_company.id)
 
     def test_sales_debit_note_can_be_created_and_linked_to_its_invoice(self):
         origin = create_sales_invoice(

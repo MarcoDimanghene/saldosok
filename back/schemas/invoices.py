@@ -32,6 +32,7 @@ class PurchaseInvoiceCreate(InvoiceBase):
 
 class PurchasePendingCreate(BaseModel):
     supplier_id: int
+    receiver_id: Optional[int] = None
     concept: str = Field(..., min_length=1, max_length=300)
     total_amount: Decimal = Field(..., gt=0, max_digits=15, decimal_places=2)
     due_date: Optional[date] = None
@@ -68,6 +69,7 @@ class PurchaseInvoiceResponse(BaseModel):
     id: int
     numero_interno: Optional[str] = None
     proveedor_id: int
+    receptor_id: Optional[int] = None
     letra: Optional[str] = None
     punto_venta: Optional[int] = None
     nro_factura: Optional[int] = None

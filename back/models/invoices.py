@@ -31,6 +31,7 @@ class PurchaseInvoice(Base):
     
     # Proveedor que emite la factura (Apuntamos a la tabla 'clientes')
     proveedor_id = Column(Integer, ForeignKey("clientes.id"), nullable=False)
+    receptor_id = Column(Integer, ForeignKey("clientes.id"), nullable=True)
     
     letra = Column(String(1))
     punto_venta = Column(Integer)
@@ -52,7 +53,8 @@ class PurchaseInvoice(Base):
 
     # Relaciones
     organizacion = relationship("Tenant")
-    proveedor = relationship("Company")
+    proveedor = relationship("Company", foreign_keys=[proveedor_id])
+    receptor = relationship("Company", foreign_keys=[receptor_id])
     pagos = relationship("PurchasePayment", back_populates="factura")
 
     @property

@@ -13,7 +13,7 @@ class InvoiceDraft(BaseModel):
     issuer_id: Optional[int] = None      # id de la empresa del tenant emisora de la venta
     issuer_name: Optional[str] = None
     issuer_cuit: Optional[str] = None
-    receiver_id: Optional[int] = None    # id del receptor (cliente en venta / tenant en compra)
+    receiver_id: Optional[int] = None    # cliente en venta / empresa destinataria en compra
     receiver_name: Optional[str] = None
     receiver_cuit: Optional[str] = None
     letter: Optional[str] = None         # 'A', 'B', 'C'

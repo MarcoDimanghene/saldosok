@@ -12,6 +12,8 @@ from back.crud.payments import (
     create_collection,
     create_payment,
     delete_collection,
+    get_collections_by_invoice_id,
+    get_payments_by_invoice_id,
     update_collection,
     update_payment,
 )
@@ -152,6 +154,62 @@ class PaymentValidationTests(unittest.TestCase):
 
         self.assertEqual(sales_response.monto_cobrado, Decimal("35.50"))
         self.assertEqual(purchase_response.monto_pagado, Decimal("42.25"))
+
+    def test_movement_history_is_ordered_newest_first(self):
+        earlier = date(2025, 1, 1)
+        later = date(2025, 1, 2)
+        first_collection = create_collection(
+            self.session,
+            self.tenant.id,
+            CollectionCreate(
+                invoice_id=self.sales_invoice.id,
+                amount="10.00",
+                collection_date=earlier,
+            ),
+        )
+        second_collection = create_collection(
+            self.session,
+            self.tenant.id,
+            CollectionCreate(
+                invoice_id=self.sales_invoice.id,
+                amount="20.00",
+                collection_date=later,
+            ),
+        )
+        first_payment = create_payment(
+            self.session,
+            self.tenant.id,
+            PaymentCreate(
+                invoice_id=self.purchase_invoice.id,
+                amount="10.00",
+                payment_date=earlier,
+            ),
+        )
+        second_payment = create_payment(
+            self.session,
+            self.tenant.id,
+            PaymentCreate(
+                invoice_id=self.purchase_invoice.id,
+                amount="20.00",
+                payment_date=later,
+            ),
+        )
+
+        collections = get_collections_by_invoice_id(
+            self.session, self.tenant.id, self.sales_invoice.id
+        )
+        payments = get_payments_by_invoice_id(
+            self.session, self.tenant.id, self.purchase_invoice.id
+        )
+
+        self.assertEqual(
+            [movement.id for movement in collections],
+            [second_collection.id, first_collection.id],
+        )
+        self.assertEqual(
+            [movement.id for movement in payments],
+            [second_payment.id, first_payment.id],
+        )
 
 
 if __name__ == "__main__":
