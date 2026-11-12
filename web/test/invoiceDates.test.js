@@ -1,10 +1,19 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  addDaysToDate,
   daysUntil,
   formatDateCountdown,
   formatInvoiceDate,
 } from '../src/pages/Invoices/invoiceDates.js';
+
+test('adds company payment terms to invoice dates without timezone shifts', () => {
+  assert.equal(addDaysToDate('2026-11-12', 30), '2026-12-12');
+  assert.equal(addDaysToDate('2026-12-20', '15'), '2027-01-04');
+  assert.equal(addDaysToDate('2024-02-28', 1), '2024-02-29');
+  assert.equal(addDaysToDate('2026-11-12', ''), '');
+  assert.equal(addDaysToDate('invalid', 10), '');
+});
 
 test('counts days to due dates without timezone shifts', () => {
   assert.equal(daysUntil('2026-11-15', '2026-11-11'), 4);

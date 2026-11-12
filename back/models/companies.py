@@ -34,6 +34,8 @@ class Company(Base):
     titular_cuenta = Column(String)
     categoria_servicio = Column(String)
     dias_credito = Column(Integer, nullable=False, default=0, server_default="0")
+    dias_cobro = Column(Integer, nullable=False, default=0, server_default="0")
+    dias_pago = Column(Integer, nullable=False, default=0, server_default="0")
     contacto_nombre = Column(String)
     email_1 = Column(String)
     email_2 = Column(String)

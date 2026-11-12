@@ -6,6 +6,16 @@ function parseDate(dateValue) {
   return Date.UTC(Number(year), Number(month) - 1, Number(day));
 }
 
+export function addDaysToDate(dateValue, daysValue) {
+  const timestamp = parseDate(dateValue);
+  if (timestamp === null || daysValue === '' || daysValue === null) return '';
+
+  const days = Number(daysValue);
+  if (!Number.isInteger(days) || days < 0) return '';
+
+  return new Date(timestamp + days * 86_400_000).toISOString().slice(0, 10);
+}
+
 export function daysUntil(dateValue, referenceDate = new Date()) {
   const target = parseDate(dateValue);
   if (target === null) return null;

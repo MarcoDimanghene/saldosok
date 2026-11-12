@@ -50,7 +50,11 @@ import {
   Tabs,
 } from './Invoices.styles';
 import { filterInvoices } from './invoiceFilters';
-import { formatDateCountdown, formatInvoiceDate } from './invoiceDates';
+import {
+  addDaysToDate,
+  formatDateCountdown,
+  formatInvoiceDate,
+} from './invoiceDates';
 import InvoiceNotes from './InvoiceNotes';
 import InvoiceDetailsDialog from './InvoiceDetailsDialog';
 import InvoiceMovementDialog from './InvoiceMovementDialog';
@@ -71,7 +75,7 @@ const initialPurchaseForm = {
   receiver_id: '',
   concept: '',
   total_amount: '',
-  due_date: '',
+  due_date: today,
 };
 const initialFormalPurchaseForm = {
   issuer_id: '',
@@ -81,7 +85,7 @@ const initialFormalPurchaseForm = {
   invoice_number: '',
   cae: '',
   issue_date: today,
-  due_date: '',
+  due_date: today,
   concept: '',
   total_amount: '',
 };
@@ -100,6 +104,10 @@ const linkedInvoiceNumber = (invoices, originId) => {
   return originInvoice ? invoiceNumberLabel(originInvoice) : `#${originId}`;
 };
 const remainingBalance = (total, paid) => Math.max(Number(total || 0) - Number(paid || 0), 0);
+const companyTermDays = (company, field) => {
+  const days = Number(company?.[field] ?? company?.dias_credito ?? 0);
+  return Number.isInteger(days) && days >= 0 ? days : 0;
+};
 const initialInvoiceFilters = {
   status: 'all',
   dateFrom: '',
@@ -126,6 +134,9 @@ const Invoices = () => {
   const [salesForm, setSalesForm] = useState(initialSalesForm);
   const [purchaseForm, setPurchaseForm] = useState(initialPurchaseForm);
   const [formalPurchaseForm, setFormalPurchaseForm] = useState(initialFormalPurchaseForm);
+  const [salesCollectionDays, setSalesCollectionDays] = useState('0');
+  const [pendingPaymentDays, setPendingPaymentDays] = useState('0');
+  const [formalPaymentDays, setFormalPaymentDays] = useState('0');
   const [purchaseMode, setPurchaseMode] = useState('pending');
   const [formalizing, setFormalizing] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
@@ -191,6 +202,79 @@ const Invoices = () => {
   );
   const loadError = salesError || purchasesError;
 
+  const handleSalesClientChange = (receiverId) => {
+    const client = clients.find((company) => String(company.id) === receiverId);
+    const days = String(companyTermDays(client, 'dias_cobro'));
+    setSalesCollectionDays(days);
+    setSalesForm((current) => ({
+      ...current,
+      receiver_id: receiverId,
+      estimated_payment_date: addDaysToDate(current.issue_date, days),
+    }));
+  };
+
+  const handleSalesIssueDateChange = (issueDate) => {
+    setSalesForm((current) => ({
+      ...current,
+      issue_date: issueDate,
+      estimated_payment_date: addDaysToDate(issueDate, salesCollectionDays),
+    }));
+  };
+
+  const handleSalesCollectionDaysChange = (days) => {
+    setSalesCollectionDays(days);
+    setSalesForm((current) => ({
+      ...current,
+      estimated_payment_date: addDaysToDate(current.issue_date, days),
+    }));
+  };
+
+  const handlePendingSupplierChange = (supplierId) => {
+    const supplier = suppliers.find((company) => String(company.id) === supplierId);
+    const days = String(companyTermDays(supplier, 'dias_pago'));
+    setPendingPaymentDays(days);
+    setPurchaseForm((current) => ({
+      ...current,
+      supplier_id: supplierId,
+      due_date: addDaysToDate(today, days),
+    }));
+  };
+
+  const handlePendingPaymentDaysChange = (days) => {
+    setPendingPaymentDays(days);
+    setPurchaseForm((current) => ({
+      ...current,
+      due_date: addDaysToDate(today, days),
+    }));
+  };
+
+  const handleFormalSupplierChange = (issuerId) => {
+    const supplier = suppliers.find((company) => String(company.id) === issuerId);
+    const days = String(companyTermDays(supplier, 'dias_pago'));
+    setFormalPaymentDays(days);
+    setFormalPurchaseForm((current) => ({
+      ...current,
+      issuer_id: issuerId,
+      due_date: addDaysToDate(current.issue_date, days),
+    }));
+  };
+
+  const handleFormalIssueDateChange = (issueDate) => {
+    setFormalPurchaseForm((current) => ({
+      ...current,
+      issue_date: issueDate,
+      due_date: addDaysToDate(issueDate, formalPaymentDays),
+    }));
+  };
+
+  const handleFormalPaymentDaysChange = (days) => {
+    setFormalPaymentDays(days);
+    setFormalPurchaseForm((current) => ({
+      ...current,
+      due_date: addDaysToDate(current.issue_date, days),
+    }));
+  };
+
   const handleCreateSales = async (event) => {
     event.preventDefault();
     setMessage(null);
@@ -205,6 +289,7 @@ const Invoices = () => {
         total_amount: salesForm.total_amount,
       });
       setSalesForm({ ...initialSalesForm, issue_date: today, estimated_payment_date: today });
+      setSalesCollectionDays('0');
       setMessage({ error: false, text: 'La factura de venta se registró correctamente.' });
       await refreshSales();
     } catch (error) {
@@ -227,6 +312,7 @@ const Invoices = () => {
         due_date: purchaseForm.due_date || null,
       });
       setPurchaseForm(initialPurchaseForm);
+      setPendingPaymentDays('0');
       setMessage({
         error: false,
         text: `Compra creada con número interno ${purchase.numero_interno}.`,
@@ -256,6 +342,7 @@ const Invoices = () => {
         concept: formalPurchaseForm.concept.trim() || null,
       });
       setFormalPurchaseForm(initialFormalPurchaseForm);
+      setFormalPaymentDays('0');
       setMessage({ error: false, text: 'La factura de compra se registró correctamente.' });
       await refreshPurchases();
     } catch (error) {
@@ -414,7 +501,7 @@ const Invoices = () => {
                     as="select"
                     id="sales-client"
                     value={salesForm.receiver_id}
-                    onChange={(event) => setSalesForm({ ...salesForm, receiver_id: event.target.value })}
+                    onChange={(event) => handleSalesClientChange(event.target.value)}
                     required
                   >
                     <option value="">Seleccionar cliente</option>
@@ -450,12 +537,36 @@ const Invoices = () => {
                   <FormInput id="sales-amount" type="number" min="0.01" step="0.01" value={salesForm.total_amount} onChange={(event) => setSalesForm({ ...salesForm, total_amount: event.target.value })} required />
                 </FormField>
                 <FormField>
-                  <label htmlFor="sales-date">Fecha de emisión</label>
-                  <FormInput id="sales-date" type="date" value={salesForm.issue_date} onChange={(event) => setSalesForm({ ...salesForm, issue_date: event.target.value })} required />
+                  <label htmlFor="sales-collection-days">Plazo de cobro (días)</label>
+                  <FormInput
+                    id="sales-collection-days"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={salesCollectionDays}
+                    onChange={(event) => handleSalesCollectionDaysChange(event.target.value)}
+                    required
+                  />
                 </FormField>
                 <FormField>
-                  <label htmlFor="sales-due-date">Fecha estimada de cobro</label>
-                  <FormInput id="sales-due-date" type="date" value={salesForm.estimated_payment_date} onChange={(event) => setSalesForm({ ...salesForm, estimated_payment_date: event.target.value })} required />
+                  <label htmlFor="sales-date">Fecha de emisión</label>
+                  <FormInput
+                    id="sales-date"
+                    type="date"
+                    value={salesForm.issue_date}
+                    onChange={(event) => handleSalesIssueDateChange(event.target.value)}
+                    required
+                  />
+                </FormField>
+                <FormField>
+                  <label htmlFor="sales-due-date">Fecha estimada de cobro (automática)</label>
+                  <FormInput
+                    id="sales-due-date"
+                    type="date"
+                    value={salesForm.estimated_payment_date}
+                    readOnly
+                    required
+                  />
                 </FormField>
               </FormGrid>
               <Button type="submit" disabled={isSubmitting}>
@@ -506,7 +617,7 @@ const Invoices = () => {
                         as="select"
                         id="purchase-supplier"
                         value={purchaseForm.supplier_id}
-                        onChange={(event) => setPurchaseForm({ ...purchaseForm, supplier_id: event.target.value })}
+                        onChange={(event) => handlePendingSupplierChange(event.target.value)}
                         required
                       >
                         <option value="">Seleccionar proveedor</option>
@@ -542,8 +653,25 @@ const Invoices = () => {
                       <FormInput id="purchase-amount" type="number" min="0.01" step="0.01" value={purchaseForm.total_amount} onChange={(event) => setPurchaseForm({ ...purchaseForm, total_amount: event.target.value })} required />
                     </FormField>
                     <FormField>
-                      <label htmlFor="purchase-due-date">Vencimiento (opcional)</label>
-                      <FormInput id="purchase-due-date" type="date" value={purchaseForm.due_date} onChange={(event) => setPurchaseForm({ ...purchaseForm, due_date: event.target.value })} />
+                      <label htmlFor="purchase-payment-days">Plazo para pagar (días)</label>
+                      <FormInput
+                        id="purchase-payment-days"
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={pendingPaymentDays}
+                        onChange={(event) => handlePendingPaymentDaysChange(event.target.value)}
+                        required
+                      />
+                    </FormField>
+                    <FormField>
+                      <label htmlFor="purchase-due-date">Vencimiento estimado (automático)</label>
+                      <FormInput
+                        id="purchase-due-date"
+                        type="date"
+                        value={purchaseForm.due_date}
+                        readOnly
+                      />
                     </FormField>
                   </FormGrid>
                   <Button type="submit" disabled={isSubmitting}>
@@ -559,7 +687,7 @@ const Invoices = () => {
                         as="select"
                         id="formal-purchase-supplier"
                         value={formalPurchaseForm.issuer_id}
-                        onChange={(event) => setFormalPurchaseForm({ ...formalPurchaseForm, issuer_id: event.target.value })}
+                        onChange={(event) => handleFormalSupplierChange(event.target.value)}
                         required
                       >
                         <option value="">Seleccionar proveedor</option>
@@ -621,11 +749,34 @@ const Invoices = () => {
                     </FormField>
                     <FormField>
                       <label htmlFor="formal-purchase-date">Fecha de emisión</label>
-                      <FormInput id="formal-purchase-date" type="date" value={formalPurchaseForm.issue_date} onChange={(event) => setFormalPurchaseForm({ ...formalPurchaseForm, issue_date: event.target.value })} required />
+                      <FormInput
+                        id="formal-purchase-date"
+                        type="date"
+                        value={formalPurchaseForm.issue_date}
+                        onChange={(event) => handleFormalIssueDateChange(event.target.value)}
+                        required
+                      />
                     </FormField>
                     <FormField>
-                      <label htmlFor="formal-purchase-due-date">Vencimiento (opcional)</label>
-                      <FormInput id="formal-purchase-due-date" type="date" value={formalPurchaseForm.due_date} onChange={(event) => setFormalPurchaseForm({ ...formalPurchaseForm, due_date: event.target.value })} />
+                      <label htmlFor="formal-purchase-payment-days">Plazo para pagar (días)</label>
+                      <FormInput
+                        id="formal-purchase-payment-days"
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={formalPaymentDays}
+                        onChange={(event) => handleFormalPaymentDaysChange(event.target.value)}
+                        required
+                      />
+                    </FormField>
+                    <FormField>
+                      <label htmlFor="formal-purchase-due-date">Vencimiento estimado (automático)</label>
+                      <FormInput
+                        id="formal-purchase-due-date"
+                        type="date"
+                        value={formalPurchaseForm.due_date}
+                        readOnly
+                      />
                     </FormField>
                     <FormField>
                       <label htmlFor="formal-purchase-amount">Importe</label>

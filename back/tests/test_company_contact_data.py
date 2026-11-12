@@ -43,6 +43,8 @@ class CompanyContactDataTests(unittest.TestCase):
                 titular_cuenta="Prestador de prueba",
                 categoria_servicio="Mantenimiento",
                 dias_credito=30,
+                dias_cobro=15,
+                dias_pago=45,
                 contacto_nombre="Contacto de prueba",
                 email_1="contacto@example.com",
                 telefono_1="1122334455",
@@ -54,9 +56,13 @@ class CompanyContactDataTests(unittest.TestCase):
         self.assertEqual(company.condicion_fiscal, "Monotributo")
         self.assertEqual(company.cbu_cvu, "1234567890123456789012")
         self.assertEqual(company.dias_credito, 30)
+        self.assertEqual(company.dias_cobro, 15)
+        self.assertEqual(company.dias_pago, 45)
         response = schemas.CompanyResponse.model_validate(company)
         self.assertEqual(response.email_1, "contacto@example.com")
         self.assertEqual(response.categoria_servicio, "Mantenimiento")
+        self.assertEqual(response.dias_cobro, 15)
+        self.assertEqual(response.dias_pago, 45)
 
     def test_supplier_can_be_created_without_tax_id_and_with_location(self):
         company = create_company(
@@ -109,6 +115,8 @@ class CompanyContactDataTests(unittest.TestCase):
                 cbu_propio="0001234567890123456789",
                 alias_propio="EMPRESA.COBROS",
                 localidad="La Plata",
+                dias_cobro=14,
+                dias_pago=20,
                 email_2="administracion@example.com",
                 telefono_2="1144556677",
             ),
@@ -117,6 +125,8 @@ class CompanyContactDataTests(unittest.TestCase):
         self.assertEqual(updated.banco_principal, "Banco Provincia")
         self.assertEqual(updated.alias_propio, "EMPRESA.COBROS")
         self.assertEqual(updated.localidad, "La Plata")
+        self.assertEqual(updated.dias_cobro, 14)
+        self.assertEqual(updated.dias_pago, 20)
         self.assertEqual(updated.email_2, "administracion@example.com")
         self.assertEqual(updated.telefono_2, "1144556677")
 
@@ -136,13 +146,15 @@ class CompanyContactDataTests(unittest.TestCase):
         self.assertEqual(company.condicion_iva, "Responsable Inscripto")
         self.assertIsNone(company.email_1)
 
-    def test_credit_days_cannot_be_negative(self):
-        with self.assertRaises(ValidationError):
-            schemas.CompanyCreate(
-                tax_id="20444444444",
-                legal_name="Empresa inválida",
-                dias_credito=-1,
-            )
+    def test_payment_terms_cannot_be_negative(self):
+        for field in ("dias_credito", "dias_cobro", "dias_pago"):
+            with self.subTest(field=field):
+                with self.assertRaises(ValidationError):
+                    schemas.CompanyCreate(
+                        tax_id="20444444444",
+                        legal_name="Empresa inválida",
+                        **{field: -1},
+                    )
 
     def test_new_contact_fields_are_part_of_company_table(self):
         expected = {
@@ -157,6 +169,8 @@ class CompanyContactDataTests(unittest.TestCase):
             "titular_cuenta",
             "categoria_servicio",
             "dias_credito",
+            "dias_cobro",
+            "dias_pago",
             "contacto_nombre",
             "email_1",
             "email_2",

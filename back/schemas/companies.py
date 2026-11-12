@@ -19,6 +19,8 @@ class CompanyBase(BaseModel):
     titular_cuenta: Optional[str] = None
     categoria_servicio: Optional[str] = None
     dias_credito: int = Field(default=0, ge=0)
+    dias_cobro: int = Field(default=0, ge=0)
+    dias_pago: int = Field(default=0, ge=0)
     contacto_nombre: Optional[str] = None
     email_1: Optional[str] = None
     email_2: Optional[str] = None
@@ -57,6 +59,8 @@ class CompanyUpdate(BaseModel):
     titular_cuenta: Optional[str] = None
     categoria_servicio: Optional[str] = None
     dias_credito: Optional[int] = Field(None, ge=0)
+    dias_cobro: Optional[int] = Field(None, ge=0)
+    dias_pago: Optional[int] = Field(None, ge=0)
     contacto_nombre: Optional[str] = None
     email_1: Optional[str] = None
     email_2: Optional[str] = None
@@ -85,6 +89,8 @@ class CompanyResponse(BaseModel):
     titular_cuenta: Optional[str] = None
     categoria_servicio: Optional[str] = None
     dias_credito: int = 0
+    dias_cobro: int = 0
+    dias_pago: int = 0
     contacto_nombre: Optional[str] = None
     email_1: Optional[str] = None
     email_2: Optional[str] = None

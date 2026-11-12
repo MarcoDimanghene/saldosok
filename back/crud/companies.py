@@ -26,6 +26,8 @@ MAPEO_CAMPOS = {
     "titular_cuenta": "titular_cuenta",
     "categoria_servicio": "categoria_servicio",
     "dias_credito": "dias_credito",
+    "dias_cobro": "dias_cobro",
+    "dias_pago": "dias_pago",
     "contacto_nombre": "contacto_nombre",
     "email_1": "email_1",
     "email_2": "email_2",

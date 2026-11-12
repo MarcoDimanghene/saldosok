@@ -27,6 +27,8 @@ const initialForm = {
   address: '',
   localidad: '',
   provincia: '',
+  dias_cobro: '0',
+  dias_pago: '0',
   is_client: false,
   is_supplier: false,
   is_issuer: false,
@@ -73,6 +75,8 @@ const Companies = () => {
         address: form.address.trim() || null,
         localidad: form.localidad.trim() || null,
         provincia: form.provincia.trim() || null,
+        dias_cobro: Number(form.dias_cobro),
+        dias_pago: Number(form.dias_pago),
         tax_id: taxId || null,
       };
       if (editingCompanyId) {
@@ -108,6 +112,8 @@ const Companies = () => {
       address: company.domicilio || '',
       localidad: company.localidad || '',
       provincia: company.provincia || '',
+      dias_cobro: String(company.dias_cobro ?? company.dias_credito ?? 0),
+      dias_pago: String(company.dias_pago ?? company.dias_credito ?? 0),
       is_client: company.es_cliente,
       is_supplier: company.es_proveedor,
       is_issuer: company.es_emisor,
@@ -125,7 +131,10 @@ const Companies = () => {
     <>
       <PageHeader>
         <h1>Empresas</h1>
-        <p>Administra tus clientes, proveedores y empresas emisoras. Selecciona la empresa emisora en cada venta.</p>
+        <p>
+          Administra clientes, proveedores y emisoras, y define los plazos predeterminados
+          de cobro y pago para las facturas.
+        </p>
       </PageHeader>
 
       {message && (
@@ -208,6 +217,30 @@ const Companies = () => {
               />
             </FormField>
             <FormField>
+              <label htmlFor="company-collection-days">Plazo para cobrar (días)</label>
+              <FormInput
+                id="company-collection-days"
+                type="number"
+                min="0"
+                step="1"
+                value={form.dias_cobro}
+                onChange={(event) => setForm({ ...form, dias_cobro: event.target.value })}
+                required
+              />
+            </FormField>
+            <FormField>
+              <label htmlFor="company-payment-days">Plazo para pagar (días)</label>
+              <FormInput
+                id="company-payment-days"
+                type="number"
+                min="0"
+                step="1"
+                value={form.dias_pago}
+                onChange={(event) => setForm({ ...form, dias_pago: event.target.value })}
+                required
+              />
+            </FormField>
+            <FormField>
               <span>Roles</span>
               <CompanyRoles>
                 <RoleChoice>
@@ -273,6 +306,8 @@ const Companies = () => {
                           {company.cuit ? `CUIT/CUIL ${company.cuit}` : 'Sin CUIT/CUIL'}
                           {company.localidad && ` · ${company.localidad}`}
                           {company.provincia && `, ${company.provincia}`}
+                          {` · Cobra a ${company.dias_cobro ?? company.dias_credito ?? 0} días`}
+                          {` · Paga a ${company.dias_pago ?? company.dias_credito ?? 0} días`}
                         </span>
                       </div>
                     </CompanyName>
