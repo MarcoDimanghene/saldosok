@@ -17,7 +17,7 @@ import {
   createSalesInvoice,
 } from '../../services/invoiceService';
 import { createCollection, createPayment } from '../../services/paymentService';
-import { INVOICE_LETTERS } from '../../config/appConfig';
+import { INVOICE_LETTERS, INVOICE_TYPE_LABELS } from '../../config/appConfig';
 import {
   fetchCompanies,
   fetchDashboard,
@@ -44,6 +44,8 @@ import {
 } from './Invoices.styles';
 import { filterInvoices } from './invoiceFilters';
 import { formatDateCountdown, formatInvoiceDate } from './invoiceDates';
+import { useAuth } from '../../hook/useAuth';
+import InvoiceNotes from './InvoiceNotes';
 
 const today = new Date().toISOString().slice(0, 10);
 const initialSalesForm = {
@@ -80,6 +82,13 @@ const currency = new Intl.NumberFormat('es-AR', {
   maximumFractionDigits: 2,
 });
 const formatCurrency = (amount) => currency.format(Number(amount) || 0);
+const invoiceNumberLabel = (invoice) => (
+  `${invoice.letra || '—'} ${invoice.punto_venta ?? '—'}-${invoice.nro_factura ?? '—'}`
+);
+const linkedInvoiceNumber = (invoices, originId) => {
+  const originInvoice = invoices.find((invoice) => invoice.id === originId);
+  return originInvoice ? invoiceNumberLabel(originInvoice) : `#${originId}`;
+};
 const remainingBalance = (total, paid) => Math.max(Number(total || 0) - Number(paid || 0), 0);
 const initialInvoiceFilters = {
   status: 'all',
@@ -89,6 +98,7 @@ const initialInvoiceFilters = {
 };
 
 const Invoices = () => {
+  const { tenant } = useAuth();
   const dispatch = useDispatch();
   const {
     items: companies,
@@ -125,16 +135,14 @@ const Invoices = () => {
     [companies],
   );
   const filterCompanies = useMemo(() => {
-    const availableCompanies = tab === 'sales'
-      ? [...issuers, ...clients]
-      : suppliers;
+    const availableCompanies = tab === 'purchases' ? suppliers : [...issuers, ...clients];
     return [...new Map(availableCompanies.map((company) => [company.id, company])).values()];
   }, [clients, issuers, suppliers, tab]);
   const visibleInvoices = useMemo(
     () => filterInvoices(
-      tab === 'sales' ? salesInvoices : purchaseInvoices,
+      tab === 'purchases' ? purchaseInvoices : salesInvoices,
       invoiceFilters,
-      tab,
+      tab === 'purchases' ? 'purchases' : 'sales',
     ),
     [invoiceFilters, purchaseInvoices, salesInvoices, tab],
   );
@@ -306,8 +314,8 @@ const Invoices = () => {
   return (
     <>
       <PageHeader>
-        <h1>Ventas y compras</h1>
-        <p>Registra facturas, compras pendientes y movimientos parciales de cobro y pago.</p>
+        <h1>Ventas, compras y notas</h1>
+        <p>Registra facturas, notas de crédito y débito, compras pendientes y movimientos de cobro y pago.</p>
       </PageHeader>
 
       {message && (
@@ -341,9 +349,34 @@ const Invoices = () => {
         >
           <TbArrowDownLeft aria-hidden="true" /> Compras
         </TabButton>
+        <TabButton
+          type="button"
+          role="tab"
+          aria-selected={tab === 'notes'}
+          $active={tab === 'notes'}
+          onClick={() => setTab('notes')}
+        >
+          <TbFileInvoice aria-hidden="true" /> Notas
+        </TabButton>
       </Tabs>
 
-      {tab === 'sales' ? (
+      {tab === 'notes' ? (
+        <Panel as="section">
+          <SectionHeading>
+            <h2>Nueva nota de crédito o débito</h2>
+            <span>Vincula cada nota a una factura formal de venta o compra.</span>
+          </SectionHeading>
+          <InvoiceNotes
+            companies={companies}
+            salesInvoices={salesInvoices}
+            purchaseInvoices={purchaseInvoices}
+            isLoading={isLoading}
+            onCreated={(direction) => (
+              direction === 'sales' ? refreshSales() : refreshPurchases()
+            )}
+          />
+        </Panel>
+      ) : tab === 'sales' ? (
         <Panel as="section">
           <SectionHeading>
             <h2>Nueva factura de venta</h2>
@@ -569,6 +602,7 @@ const Invoices = () => {
         </Panel>
       )}
 
+      {tab !== 'notes' && (
       <Panel as="section">
         <SectionHeading>
           <h2>{tab === 'sales' ? 'Facturas de venta' : 'Compras y facturas de proveedor'}</h2>
@@ -653,7 +687,7 @@ const Invoices = () => {
               <thead>
                 <tr>
                   <TableHeader>Factura</TableHeader>
-                  <TableHeader>Emisor / cliente</TableHeader>
+                  <TableHeader>Emisor / destinatario</TableHeader>
                   <TableHeader>Importe</TableHeader>
                   <TableHeader>Estado</TableHeader>
                   <TableHeader>Acciones</TableHeader>
@@ -666,7 +700,14 @@ const Invoices = () => {
                     className={invoice.estado === 'pendiente' ? 'invoice-row--pending' : undefined}
                   >
                     <TableCell>
-                      {invoice.letra || '—'} {invoice.punto_venta || '—'}-{invoice.nro_factura || '—'}
+                      <strong>
+                        {INVOICE_TYPE_LABELS[invoice.tipo_comprobante] || 'Factura'} {invoiceNumberLabel(invoice)}
+                      </strong>
+                      {invoice.factura_origen_id && (
+                        <span>
+                          Vinculada a: {linkedInvoiceNumber(salesInvoices, invoice.factura_origen_id)}
+                        </span>
+                      )}
                       {invoice.fecha_pago_approx && (
                         <>
                           <span>Fecha aprox. de cobro: {formatInvoiceDate(invoice.fecha_pago_approx)}</span>
@@ -677,7 +718,10 @@ const Invoices = () => {
                       )}
                     </TableCell>
                     <TableCell>
-                      {companyNames.get(invoice.emisor_id) || 'Emisor anterior'} → {companyNames.get(invoice.cliente_id) || 'Cliente'}
+                      {companyNames.get(invoice.emisor_id) || 'Emisor anterior'}
+                      <span>
+                        Destinatario: {companyNames.get(invoice.cliente_id) || 'Cliente'}
+                      </span>
                     </TableCell>
                     <TableCell className="numeric">
                       {formatCurrency(invoice.monto_total)}
@@ -736,7 +780,7 @@ const Invoices = () => {
               <thead>
                 <tr>
                   <TableHeader>Registro</TableHeader>
-                  <TableHeader>Proveedor / concepto</TableHeader>
+                  <TableHeader>Proveedor / destinatario</TableHeader>
                   <TableHeader>Importe</TableHeader>
                   <TableHeader>Estado</TableHeader>
                   <TableHeader>Acciones</TableHeader>
@@ -750,7 +794,16 @@ const Invoices = () => {
                   >
                     <TableCell>
                       <strong>{invoice.numero_interno || `Compra ${invoice.id}`}</strong>
-                      <span>{invoice.factura_recibida ? `Factura ${invoice.letra || ''} ${invoice.punto_venta || ''}-${invoice.nro_factura || ''}` : 'Factura formal pendiente'}</span>
+                      <span>
+                        {invoice.factura_recibida
+                          ? `${INVOICE_TYPE_LABELS[invoice.tipo_comprobante] || 'Factura'} ${invoiceNumberLabel(invoice)}`
+                          : 'Factura formal pendiente'}
+                      </span>
+                      {invoice.factura_origen_id && (
+                        <span>
+                          Vinculada a: {linkedInvoiceNumber(purchaseInvoices, invoice.factura_origen_id)}
+                        </span>
+                      )}
                       {invoice.fecha_vencimiento && (
                         <>
                           <span>Vencimiento: {formatInvoiceDate(invoice.fecha_vencimiento)}</span>
@@ -762,6 +815,7 @@ const Invoices = () => {
                     </TableCell>
                     <TableCell>
                       {companyNames.get(invoice.proveedor_id) || 'Proveedor'}
+                      <span>Destinatario: {tenant?.razon_social || 'tu organización'}</span>
                       {invoice.concepto && <span>{invoice.concepto}</span>}
                     </TableCell>
                     <TableCell className="numeric">
@@ -841,6 +895,7 @@ const Invoices = () => {
           </InvoiceList>
         )}
       </Panel>
+      )}
     </>
   );
 };

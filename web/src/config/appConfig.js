@@ -14,3 +14,8 @@ export const CONDICIONES_IVA = [
 ];
 
 export const INVOICE_LETTERS = ['A', 'B', 'C', 'E', 'M'];
+export const INVOICE_TYPE_LABELS = {
+  factura: 'Factura',
+  nota_credito: 'Nota de crédito',
+  nota_debito: 'Nota de débito',
+};

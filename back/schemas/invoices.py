@@ -21,6 +21,7 @@ class InvoiceBase(BaseModel):
 # 2. FACTURAS DE COMPRA (Purchase Invoices)
 # =====================================================================
 class PurchaseInvoiceCreate(InvoiceBase):
+    receiver_id: Optional[int] = None
     due_date: Optional[date] = None
     currency: str = 'ARS'
     concept: Optional[str] = None

@@ -214,7 +214,12 @@ const Dashboard = () => {
                 <span>Comparación mensual</span>
               </SectionHeading>
               <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={chartData} margin={{ top: 12, right: 8, left: 8, bottom: 4 }}>
+                <BarChart
+                  data={chartData}
+                  barCategoryGap="35%"
+                  barGap={12}
+                  margin={{ top: 12, right: 8, left: 8, bottom: 4 }}
+                >
                   <CartesianGrid stroke="rgba(255,255,255,0.08)" vertical={false} />
                   <XAxis dataKey="periodo" tick={{ fill: '#bbc9cd', fontSize: 12 }} />
                   <YAxis
@@ -231,8 +236,8 @@ const Dashboard = () => {
                       color: '#dae2fd',
                     }}
                   />
-                  <Bar dataKey="ventas" name="Ventas" fill="#2fd9f4" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="compras" name="Compras" fill="#a4d64c" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="ventas" name="Ventas" fill="#2fd9f4" barSize={28} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="compras" name="Compras" fill="#a4d64c" barSize={28} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </DashboardCard>

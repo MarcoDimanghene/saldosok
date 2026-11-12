@@ -84,13 +84,50 @@ class InvoiceTenantIsolationTests(unittest.TestCase):
     def purchase_invoice_data(self, issuer_id):
         return PurchaseInvoiceCreate(
             issuer_id=issuer_id,
-            receiver_id=self.tenant.id,
             letter="A",
             point_of_sale=1,
             invoice_number=1,
             issue_date=date.today(),
             total_amount=Decimal("100.00"),
         )
+
+    def test_sales_debit_note_can_be_created_and_linked_to_its_invoice(self):
+        origin = create_sales_invoice(
+            self.session,
+            self.tenant.id,
+            self.sales_invoice_data(self.local_company.id),
+        )
+        note_data = self.sales_invoice_data(self.local_company.id).model_copy(
+            update={
+                "invoice_number": 2,
+                "tipo_comprobante": "nota_debito",
+                "factura_origen_id": origin.id,
+            }
+        )
+
+        note = create_sales_invoice(self.session, self.tenant.id, note_data)
+
+        self.assertEqual(note.tipo_comprobante, "nota_debito")
+        self.assertEqual(note.factura_origen_id, origin.id)
+
+    def test_purchase_credit_note_can_be_created_without_receiver_id(self):
+        origin = create_purchase_invoice(
+            self.session,
+            self.tenant.id,
+            self.purchase_invoice_data(self.local_company.id),
+        )
+        note_data = self.purchase_invoice_data(self.local_company.id).model_copy(
+            update={
+                "invoice_number": 2,
+                "tipo_comprobante": "nota_credito",
+                "factura_origen_id": origin.id,
+            }
+        )
+
+        note = create_purchase_invoice(self.session, self.tenant.id, note_data)
+
+        self.assertEqual(note.tipo_comprobante, "nota_credito")
+        self.assertEqual(note.factura_origen_id, origin.id)
 
     def test_pending_purchase_gets_system_number_and_can_be_completed_after_payment(self):
         purchase = create_pending_purchase(
