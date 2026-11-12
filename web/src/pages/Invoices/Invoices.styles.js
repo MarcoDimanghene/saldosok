@@ -69,18 +69,41 @@ export const SectionHeading = styled.div`
   }
 `;
 
-export const InvoiceDetailButton = styled.button`
-  padding: 0;
-  border: 0;
-  background: transparent;
+export const InvoiceRowHeading = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.6rem;
+
+  > div {
+    min-width: 0;
+  }
+
+  strong {
+    display: block;
+    color: #a5f3fc;
+    font-weight: 600;
+  }
+`;
+
+export const InvoiceViewButton = styled.button`
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0.35rem;
+  border: 1px solid rgba(0, 229, 255, 0.42);
+  border-radius: ${RADIUS.MD};
+  background: rgba(0, 229, 255, 0.08);
   color: #a5f3fc;
   cursor: pointer;
-  font: inherit;
-  text-align: left;
+  font-size: 1.2rem;
 
   &:hover {
-    color: #00e5ff;
-    text-decoration: underline;
+    background: rgba(0, 229, 255, 0.16);
+    color: #fff;
   }
 
   &:focus-visible {
@@ -108,6 +131,17 @@ export const InvoiceDialog = styled.dialog`
 
 export const InvoiceDialogContent = styled.div`
   padding: 1.5rem;
+`;
+
+export const MovementDialog = styled(InvoiceDialog)`
+  width: min(560px, calc(100vw - 2rem));
+`;
+
+export const DialogActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 `;
 
 export const InvoiceDetailGrid = styled.div`
@@ -185,6 +219,7 @@ export const FormGrid = styled.div`
 
 export const FormField = styled.div`
   display: flex;
+  grid-column: ${({ $fullWidth }) => ($fullWidth ? '1 / -1' : 'auto')};
   min-width: 0;
   flex-direction: column;
   gap: 0.4rem;

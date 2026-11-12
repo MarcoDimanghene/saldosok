@@ -89,12 +89,12 @@ const InvoiceDetailsDialog = ({
     }
   };
 
-  const handleDialogClick = (event) => {
-    if (event.target === dialogRef.current) dialogRef.current.close();
-  };
-
   return (
-    <InvoiceDialog ref={dialogRef} onClick={handleDialogClick} aria-labelledby="invoice-details-title">
+    <InvoiceDialog
+      ref={dialogRef}
+      closedby="closerequest"
+      aria-labelledby="invoice-details-title"
+    >
       <InvoiceDialogContent>
         <SectionHeading>
           <div>

@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { TbArrowDownLeft, TbArrowUpRight, TbFileInvoice, TbPlus } from 'react-icons/tb';
+import {
+  TbArrowDownLeft,
+  TbArrowUpRight,
+  TbEye,
+  TbFileInvoice,
+  TbPlus,
+} from 'react-icons/tb';
 import { Link } from 'react-router-dom';
 import {
   Button,
@@ -16,7 +22,6 @@ import {
   createPurchaseInvoice,
   createSalesInvoice,
 } from '../../services/invoiceService';
-import { createCollection, createPayment } from '../../services/paymentService';
 import { INVOICE_LETTERS, INVOICE_TYPE_LABELS } from '../../config/appConfig';
 import {
   fetchCompanies,
@@ -34,8 +39,9 @@ import {
   FormInput,
   FilterBar,
   FilterField,
-  InvoiceDetailButton,
   InvoiceList,
+  InvoiceRowHeading,
+  InvoiceViewButton,
   PageHeader,
   Panel,
   SectionHeading,
@@ -47,6 +53,7 @@ import { filterInvoices } from './invoiceFilters';
 import { formatDateCountdown, formatInvoiceDate } from './invoiceDates';
 import InvoiceNotes from './InvoiceNotes';
 import InvoiceDetailsDialog from './InvoiceDetailsDialog';
+import InvoiceMovementDialog from './InvoiceMovementDialog';
 
 const today = new Date().toISOString().slice(0, 10);
 const initialSalesForm = {
@@ -120,9 +127,9 @@ const Invoices = () => {
   const [purchaseForm, setPurchaseForm] = useState(initialPurchaseForm);
   const [formalPurchaseForm, setFormalPurchaseForm] = useState(initialFormalPurchaseForm);
   const [purchaseMode, setPurchaseMode] = useState('pending');
-  const [settlement, setSettlement] = useState(null);
   const [formalizing, setFormalizing] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [movementDialog, setMovementDialog] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
   const [invoiceFilters, setInvoiceFilters] = useState(initialInvoiceFilters);
@@ -258,38 +265,6 @@ const Invoices = () => {
     }
   };
 
-  const handleSettlement = async (event, invoiceId, type) => {
-    event.preventDefault();
-    setMessage(null);
-    setIsSubmitting(true);
-    const amount = new FormData(event.currentTarget).get('amount');
-    try {
-      if (type === 'collection') {
-        await createCollection({
-          invoice_id: invoiceId,
-          amount,
-          collection_date: today,
-        });
-      } else {
-        await createPayment({
-          invoice_id: invoiceId,
-          amount,
-          payment_date: today,
-        });
-      }
-      setSettlement(null);
-      setMessage({
-        error: false,
-        text: type === 'collection' ? 'Cobro registrado.' : 'Pago registrado.',
-      });
-      await (type === 'collection' ? refreshSales() : refreshPurchases());
-    } catch (error) {
-      setMessage({ error: true, text: error.message || 'No se pudo registrar el movimiento.' });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleCompletePurchase = async (event, invoiceId) => {
     event.preventDefault();
     setMessage(null);
@@ -315,22 +290,26 @@ const Invoices = () => {
     }
   };
 
-  const toggleSettlement = (invoiceId, type) => {
-    setSettlement((current) => (
-      current?.invoiceId === invoiceId && current.type === type ? null : { invoiceId, type }
-    ));
-    setFormalizing(null);
-  };
-
   const selectTab = (nextTab) => {
     setTab(nextTab);
     setSelectedInvoice(null);
+    setMovementDialog(null);
+    setFormalizing(null);
   };
 
   const closeInvoiceDetails = useCallback(() => setSelectedInvoice(null), []);
+  const closeMovementDialog = useCallback(() => setMovementDialog(null), []);
   const refreshInvoiceData = useCallback(async (direction) => {
     await (direction === 'sales' ? refreshSales() : refreshPurchases());
   }, [refreshPurchases, refreshSales]);
+  const handleMovementCreated = useCallback(async (direction) => {
+    setMovementDialog(null);
+    setMessage({
+      error: false,
+      text: direction === 'sales' ? 'Cobro registrado.' : 'Pago registrado.',
+    });
+    await refreshInvoiceData(direction);
+  }, [refreshInvoiceData]);
 
   return (
     <>
@@ -338,7 +317,7 @@ const Invoices = () => {
         <h1>Ventas, compras y notas</h1>
         <p>
           Registra facturas, notas de crédito y débito, compras pendientes y movimientos de cobro y pago.
-          Haz clic en una factura para abrir su detalle y gestionar sus notas y movimientos.
+          Usa el botón del ojo para abrir el detalle de una factura.
         </p>
       </PageHeader>
 
@@ -759,23 +738,28 @@ const Invoices = () => {
                   <TableRow
                     key={invoice.id}
                     className={invoice.estado === 'pendiente' ? 'invoice-row--pending' : undefined}
-                    onClick={(event) => {
-                      if (event.target.closest('button, a, input, select, textarea')) return;
-                      setSelectedInvoice({ direction: 'sales', id: invoice.id, invoice });
-                    }}
                   >
                     <TableCell>
-                      <InvoiceDetailButton
-                        type="button"
-                        aria-label={`Ver detalle de ${INVOICE_TYPE_LABELS[invoice.tipo_comprobante] || 'factura'} ${invoiceNumberLabel(invoice)}`}
-                        onClick={() => setSelectedInvoice({
-                          direction: 'sales',
-                          id: invoice.id,
-                          invoice,
-                        })}
-                      >
-                        {INVOICE_TYPE_LABELS[invoice.tipo_comprobante] || 'Factura'} {invoiceNumberLabel(invoice)}
-                      </InvoiceDetailButton>
+                      <InvoiceRowHeading>
+                        <div>
+                          <strong>
+                            {INVOICE_TYPE_LABELS[invoice.tipo_comprobante] || 'Factura'}{' '}
+                            {invoiceNumberLabel(invoice)}
+                          </strong>
+                        </div>
+                        <InvoiceViewButton
+                          type="button"
+                          aria-label={`Ver detalle de factura ${invoiceNumberLabel(invoice)}`}
+                          title="Ver detalle de factura"
+                          onClick={() => setSelectedInvoice({
+                            direction: 'sales',
+                            id: invoice.id,
+                            invoice,
+                          })}
+                        >
+                          <TbEye aria-hidden="true" />
+                        </InvoiceViewButton>
+                      </InvoiceRowHeading>
                       {invoice.factura_origen_id && (
                         <span>
                           Vinculada a: {linkedInvoiceNumber(salesInvoices, invoice.factura_origen_id)}
@@ -820,19 +804,16 @@ const Invoices = () => {
                         <Button
                           type="button"
                           $variant="secondary"
-                          onClick={() => toggleSettlement(invoice.id, 'collection')}
+                          onClick={() => {
+                            setMessage(null);
+                            setSelectedInvoice(null);
+                            setFormalizing(null);
+                            setMovementDialog({ direction: 'sales', invoice });
+                          }}
                           disabled={invoice.estado === 'pagado' || isSubmitting}
                         >
                           Registrar cobro
                         </Button>
-                        {invoice.estado !== 'pagado'
-                          && settlement?.invoiceId === invoice.id
-                          && settlement.type === 'collection' && (
-                          <ActionForm onSubmit={(event) => handleSettlement(event, invoice.id, 'collection')}>
-                            <FormInput name="amount" type="number" min="0.01" step="0.01" placeholder="Importe" required />
-                            <Button type="submit" disabled={isSubmitting}><TbArrowDownLeft /> Cobrar</Button>
-                          </ActionForm>
-                        )}
                       </ActionCell>
                     </TableCell>
                   </TableRow>
@@ -864,28 +845,30 @@ const Invoices = () => {
                   <TableRow
                     key={invoice.id}
                     className={invoice.estado === 'pendiente' ? 'invoice-row--pending' : undefined}
-                    onClick={(event) => {
-                      if (event.target.closest('button, a, input, select, textarea')) return;
-                      setSelectedInvoice({ direction: 'purchases', id: invoice.id, invoice });
-                    }}
                   >
                     <TableCell>
-                      <InvoiceDetailButton
-                        type="button"
-                        aria-label={`Ver detalle de ${INVOICE_TYPE_LABELS[invoice.tipo_comprobante] || 'compra'} ${invoiceNumberLabel(invoice)}`}
-                        onClick={() => setSelectedInvoice({
-                          direction: 'purchases',
-                          id: invoice.id,
-                          invoice,
-                        })}
-                      >
-                        <strong>{invoice.numero_interno || `Compra ${invoice.id}`}</strong>
-                        <span>
-                          {invoice.factura_recibida
-                            ? `${INVOICE_TYPE_LABELS[invoice.tipo_comprobante] || 'Factura'} ${invoiceNumberLabel(invoice)}`
-                            : 'Factura formal pendiente'}
-                        </span>
-                      </InvoiceDetailButton>
+                      <InvoiceRowHeading>
+                        <div>
+                          <strong>{invoice.numero_interno || `Compra ${invoice.id}`}</strong>
+                          <span>
+                            {invoice.factura_recibida
+                              ? `${INVOICE_TYPE_LABELS[invoice.tipo_comprobante] || 'Factura'} ${invoiceNumberLabel(invoice)}`
+                              : 'Factura formal pendiente'}
+                          </span>
+                        </div>
+                        <InvoiceViewButton
+                          type="button"
+                          aria-label={`Ver detalle de compra ${invoice.numero_interno || invoiceNumberLabel(invoice)}`}
+                          title="Ver detalle de compra"
+                          onClick={() => setSelectedInvoice({
+                            direction: 'purchases',
+                            id: invoice.id,
+                            invoice,
+                          })}
+                        >
+                          <TbEye aria-hidden="true" />
+                        </InvoiceViewButton>
+                      </InvoiceRowHeading>
                       {invoice.factura_origen_id && (
                         <span>
                           Vinculada a: {linkedInvoiceNumber(purchaseInvoices, invoice.factura_origen_id)}
@@ -931,7 +914,12 @@ const Invoices = () => {
                         <Button
                           type="button"
                           $variant="secondary"
-                          onClick={() => toggleSettlement(invoice.id, 'payment')}
+                          onClick={() => {
+                            setMessage(null);
+                            setSelectedInvoice(null);
+                            setFormalizing(null);
+                            setMovementDialog({ direction: 'purchases', invoice });
+                          }}
                           disabled={invoice.estado === 'pagado' || isSubmitting}
                         >
                           Registrar pago
@@ -939,18 +927,9 @@ const Invoices = () => {
                         {!invoice.factura_recibida && (
                           <Button type="button" $variant="secondary" onClick={() => {
                             setFormalizing(formalizing?.id === invoice.id ? null : invoice);
-                            setSettlement(null);
                           }}>
                             <TbFileInvoice aria-hidden="true" /> Completar factura
                           </Button>
-                        )}
-                        {invoice.estado !== 'pagado'
-                          && settlement?.invoiceId === invoice.id
-                          && settlement.type === 'payment' && (
-                          <ActionForm onSubmit={(event) => handleSettlement(event, invoice.id, 'payment')}>
-                            <FormInput name="amount" type="number" min="0.01" step="0.01" placeholder="Importe" required />
-                            <Button type="submit" disabled={isSubmitting}><TbArrowUpRight /> Pagar</Button>
-                          </ActionForm>
                         )}
                         {formalizing?.id === invoice.id && (
                           <ActionForm onSubmit={(event) => handleCompletePurchase(event, invoice.id)}>
@@ -996,6 +975,15 @@ const Invoices = () => {
           purchaseInvoices={purchaseInvoices}
           onClose={closeInvoiceDetails}
           onUpdated={refreshInvoiceData}
+        />
+      )}
+      {movementDialog && (
+        <InvoiceMovementDialog
+          key={`${movementDialog.direction}-${movementDialog.invoice.id}`}
+          direction={movementDialog.direction}
+          invoice={movementDialog.invoice}
+          onClose={closeMovementDialog}
+          onCreated={handleMovementCreated}
         />
       )}
     </>
