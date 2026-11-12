@@ -336,7 +336,10 @@ const Invoices = () => {
     <>
       <PageHeader>
         <h1>Ventas, compras y notas</h1>
-        <p>Registra facturas, notas de crédito y débito, compras pendientes y movimientos de cobro y pago.</p>
+        <p>
+          Registra facturas, notas de crédito y débito, compras pendientes y movimientos de cobro y pago.
+          Haz clic en una factura para abrir su detalle y gestionar sus notas y movimientos.
+        </p>
       </PageHeader>
 
       {message && (
@@ -756,6 +759,10 @@ const Invoices = () => {
                   <TableRow
                     key={invoice.id}
                     className={invoice.estado === 'pendiente' ? 'invoice-row--pending' : undefined}
+                    onClick={(event) => {
+                      if (event.target.closest('button, a, input, select, textarea')) return;
+                      setSelectedInvoice({ direction: 'sales', id: invoice.id, invoice });
+                    }}
                   >
                     <TableCell>
                       <InvoiceDetailButton
@@ -857,6 +864,10 @@ const Invoices = () => {
                   <TableRow
                     key={invoice.id}
                     className={invoice.estado === 'pendiente' ? 'invoice-row--pending' : undefined}
+                    onClick={(event) => {
+                      if (event.target.closest('button, a, input, select, textarea')) return;
+                      setSelectedInvoice({ direction: 'purchases', id: invoice.id, invoice });
+                    }}
                   >
                     <TableCell>
                       <InvoiceDetailButton
