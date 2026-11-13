@@ -50,6 +50,9 @@ const InvoiceNotes = ({
   const [form, setForm] = useState(() => ({
     ...initialForm,
     direction: initialDirection,
+    type: originInvoice?.tipo_comprobante === 'nota_credito'
+      ? 'nota_debito'
+      : initialForm.type,
   }));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
@@ -58,23 +61,28 @@ const InvoiceNotes = ({
     [companies],
   );
   const originInvoices = useMemo(() => {
-    if (originInvoice) return [originInvoice];
     const invoices = form.direction === 'sales' ? salesInvoices : purchaseInvoices;
-    return invoices.filter((invoice) => (
-      (!invoice.tipo_comprobante || invoice.tipo_comprobante === 'factura')
-      && (form.direction === 'sales'
+    const candidates = originInvoice ? [originInvoice] : invoices;
+    return candidates.filter((invoice) => {
+      const sourceType = invoice.tipo_comprobante || 'factura';
+      const allowedSource = form.type === 'nota_credito'
+        ? sourceType === 'factura'
+        : sourceType === 'factura' || sourceType === 'nota_credito';
+      const completeSource = form.direction === 'sales'
         ? Boolean(invoice.emisor_id && invoice.cliente_id)
-        : invoice.factura_recibida)
-    ));
-  }, [form.direction, originInvoice, purchaseInvoices, salesInvoices]);
+        : invoice.factura_recibida;
+      return allowedSource && completeSource;
+    });
+  }, [form.direction, form.type, originInvoice, purchaseInvoices, salesInvoices]);
   const selectedOrigin = originInvoice || originInvoices.find(
     (invoice) => invoice.id === Number(form.originId),
   );
+  const validSelectedOrigin = selectedOrigin && originInvoices.includes(selectedOrigin);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setMessage(null);
-    if (!selectedOrigin) {
+    if (!validSelectedOrigin) {
       setMessage({ error: true, text: 'Selecciona la factura de origen de la nota.' });
       return;
     }
@@ -105,6 +113,7 @@ const InvoiceNotes = ({
           issuer_id: selectedOrigin.proveedor_id,
           receiver_id: selectedOrigin.receptor_id ?? null,
           due_date: form.dueDate || null,
+          currency: selectedOrigin.moneda || 'ARS',
         });
       }
 
@@ -157,23 +166,29 @@ const InvoiceNotes = ({
             as="select"
             id="note-type"
             value={form.type}
-            onChange={(event) => setForm({ ...form, type: event.target.value })}
+            onChange={(event) => setForm({
+              ...form,
+              type: event.target.value,
+              originId: '',
+            })}
             required
           >
-            <option value="nota_credito">Nota de crédito</option>
+            {originInvoice?.tipo_comprobante !== 'nota_credito' && (
+              <option value="nota_credito">Nota de crédito</option>
+            )}
             <option value="nota_debito">Nota de débito</option>
           </FormInput>
         </FormField>
         {originInvoice ? (
           <FormField>
-            <label>Factura de origen</label>
+            <label>Comprobante de origen</label>
             <span>
               {formatInvoiceNumber(originInvoice)} · {currency.format(Number(originInvoice.monto_total) || 0)}
             </span>
           </FormField>
         ) : (
           <FormField>
-            <label htmlFor="note-origin">Factura de origen</label>
+            <label htmlFor="note-origin">Comprobante de origen</label>
             <FormInput
               as="select"
               id="note-origin"
@@ -299,7 +314,7 @@ const InvoiceNotes = ({
       )}
       <Button
         type="submit"
-        disabled={isLoading || isSubmitting || !originInvoices.length || !selectedOrigin}
+        disabled={isLoading || isSubmitting || !originInvoices.length || !validSelectedOrigin}
       >
         <TbPlus aria-hidden="true" />
         {isSubmitting ? 'Guardando…' : 'Registrar nota'}

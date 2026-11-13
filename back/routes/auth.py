@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from back import models, schemas
 from back.services.email import send_password_reset_email
+from back.services.audit import record_audit_event
 from back.models.user import User
 from database.database import get_db
 from database.security import create_access_token, get_password_hash, verify_password
@@ -111,6 +112,16 @@ def reset_password(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No se encontró una cuenta activa para este enlace.")
 
     user.hashed_password = get_password_hash(request.new_password)
+    user.is_email_verified = True
+    record_audit_event(
+        db,
+        user.tenant_id,
+        "password_set",
+        "user",
+        user.id,
+        after_data={"email_verified": True},
+        actor_user_id=user.id,
+    )
     db.delete(reset)
     db.query(models.PasswordReset).filter(
         models.PasswordReset.user_id == user.id
@@ -136,6 +147,15 @@ def reset_password_with_recovery_code(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Usuario o código de recuperación incorrectos.")
 
     user.hashed_password = get_password_hash(request.new_password)
+    record_audit_event(
+        db,
+        user.tenant_id,
+        "password_reset",
+        "user",
+        user.id,
+        after_data={"method": "recovery_code"},
+        actor_user_id=user.id,
+    )
     db.delete(recovery)
     db.flush()
     replacement_code = secrets.token_urlsafe(18)

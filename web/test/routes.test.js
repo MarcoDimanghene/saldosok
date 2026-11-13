@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import {
   AUTH_ROUTES,
+  AUDIT_ROUTES,
   COMPANIES_ROUTES,
   DASHBOARD_ROUTES,
   INVOICES_ROUTES,
@@ -32,6 +33,7 @@ test('navigation paths match the routes rendered by AppRoutes', () => {
     invoices: '/invoices',
     imports: '/imports',
     reports: '/reports',
+    audit: '/audit',
   });
 });
 
@@ -46,6 +48,7 @@ test('API endpoint paths match the FastAPI routers', () => {
   });
   assert.deepEqual(DASHBOARD_ROUTES, { summary: '/dashboard/summary' });
   assert.deepEqual(IMPORTS_ROUTES, { finance: '/imports/finance' });
+  assert.deepEqual(AUDIT_ROUTES, { list: '/audit/' });
 
   assert.deepEqual(
     {
@@ -72,6 +75,7 @@ test('API endpoint paths match the FastAPI routers', () => {
       create: USERS_ROUTES.create,
       me: USERS_ROUTES.me,
       byId: USERS_ROUTES.byId(7),
+      invitation: USERS_ROUTES.invitation(7),
       update: USERS_ROUTES.update(7),
       delete: USERS_ROUTES.delete(7),
     },
@@ -80,6 +84,7 @@ test('API endpoint paths match the FastAPI routers', () => {
       create: '/users/',
       me: '/users/me',
       byId: '/users/7',
+      invitation: '/users/7/invitation',
       update: '/users/7',
       delete: '/users/7',
     }

@@ -77,6 +77,7 @@ class PurchaseInvoiceResponse(BaseModel):
     fecha_emision: Optional[date] = None
     fecha_vencimiento: Optional[date] = None
     monto_total: Optional[Decimal] = None
+    monto_ajustado: Optional[Decimal] = None
     monto_pagado: Decimal = Decimal("0.00")
     moneda: Optional[str] = None
     estado: Optional[str] = None
@@ -123,6 +124,7 @@ class SalesInvoiceResponse(BaseModel):
     fecha_emision: Optional[date] = None
     fecha_pago_approx: Optional[date] = None
     monto_total: Optional[Decimal] = None
+    monto_ajustado: Optional[Decimal] = None
     monto_cobrado: Decimal = Decimal("0.00")
     estado: Optional[str] = None
     tipo_comprobante: Optional[str] = None

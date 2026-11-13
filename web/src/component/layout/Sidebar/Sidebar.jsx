@@ -4,6 +4,7 @@ import {
   TbBuildingBank,
   TbFileInvoice,
   TbFileSpreadsheet,
+  TbHistory,
   TbLayoutDashboard,
   TbLogout,
   TbSettings,
@@ -81,6 +82,18 @@ const Sidebar = () => {
             >
               <TbSettings aria-hidden="true" />
               <NavLabel>Perfil</NavLabel>
+            </NavItem>
+          )}
+          {user?.is_tenant_admin && (
+            <NavItem
+              as={Link}
+              to="/audit"
+              $active={isActive('/audit')}
+              aria-current={isActive('/audit') ? 'page' : undefined}
+              title="Auditoría"
+            >
+              <TbHistory aria-hidden="true" />
+              <NavLabel>Auditoría</NavLabel>
             </NavItem>
           )}
           <NavItem

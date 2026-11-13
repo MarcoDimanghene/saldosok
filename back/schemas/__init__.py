@@ -13,3 +13,4 @@ from .user import (
 from .tenants import TenantCreate, TenantUpdate, TenantResponse, TenantRegister, TenantRegisterResponse
 from .dashboard import DashboardSummary
 from .extract import InvoiceDraft
+from .audit import AuditLogResponse

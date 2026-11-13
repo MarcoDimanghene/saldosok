@@ -1,7 +1,16 @@
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from typing import Optional
 from .. import models, schemas
+from back.services.audit import record_audit_event, snapshot_fields
+
+_USER_AUDIT_FIELDS = (
+    "nombre",
+    "username",
+    "email",
+    "is_active",
+    "is_email_verified",
+    "is_tenant_admin",
+)
 
 # ==========================================
 # CRUD Tenants
@@ -38,6 +47,15 @@ def create_user(db: Session, tenant_id: int, user: schemas.UserCreate, hashed_pa
         tenant_id=tenant_id,
     )
     db.add(db_user)
+    db.flush()
+    record_audit_event(
+        db,
+        tenant_id,
+        "created",
+        "user",
+        db_user.id,
+        after_data=snapshot_fields(db_user, _USER_AUDIT_FIELDS),
+    )
     db.commit()
     db.refresh(db_user)
     return db_user
@@ -69,13 +87,13 @@ def update_user(
     db: Session, 
     tenant_id: int, 
     user_id: int, 
-    user_update: schemas.UserUpdate, 
-    hashed_password: Optional[str] = None
+    user_update: schemas.UserUpdate,
 ):
     db_user = get_user(db, tenant_id=tenant_id, user_id=user_id)
     if not db_user:
         return None
 
+    before_data = snapshot_fields(db_user, _USER_AUDIT_FIELDS)
     # Extraemos solo los campos enviados (exclude_unset=True evita sobrescribir con None)
     update_data = user_update.model_dump(exclude_unset=True)
     if "username" in update_data and update_data["username"] is not None:
@@ -92,20 +110,19 @@ def update_user(
                 models.PasswordReset.user_id == db_user.id
             ).delete()
 
-    # Si se pasó una nueva clave ya hasheada desde el servicio, la actualizamos
-    if hashed_password:
-        update_data["hashed_password"] = hashed_password
-        db.query(models.PasswordReset).filter(
-            models.PasswordReset.user_id == db_user.id
-        ).delete()
-    elif "password" in update_data:
-        # Previene guardar la clave en texto plano si venía en el schema
-        del update_data["password"]
-
     for key, value in update_data.items():
         if hasattr(db_user, key) and key != "tenant_id": # Impedimos cambiar el tenant
             setattr(db_user, key, value)
 
+    record_audit_event(
+        db,
+        tenant_id,
+        "updated",
+        "user",
+        db_user.id,
+        before_data=before_data,
+        after_data=snapshot_fields(db_user, _USER_AUDIT_FIELDS),
+    )
     db.commit()
     db.refresh(db_user)
     return db_user
@@ -114,6 +131,15 @@ def update_user(
 def delete_user(db: Session, tenant_id: int, user_id: int) -> bool:
     db_user = get_user(db, tenant_id=tenant_id, user_id=user_id)
     if db_user:
+        before_data = snapshot_fields(db_user, _USER_AUDIT_FIELDS)
+        record_audit_event(
+            db,
+            tenant_id,
+            "deleted",
+            "user",
+            db_user.id,
+            before_data=before_data,
+        )
         db.delete(db_user)
         db.commit()
         return True

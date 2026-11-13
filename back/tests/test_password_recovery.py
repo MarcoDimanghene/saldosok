@@ -13,6 +13,7 @@ from back.routes.auth import (
     reset_password,
     reset_password_with_recovery_code,
 )
+from back.services.user_invitation import issue_user_invitation
 from back.schemas.user import (
     PasswordResetRequest,
     PasswordResetToken,
@@ -136,6 +137,45 @@ class PasswordRecoveryTests(unittest.TestCase):
             )
 
         self.assertEqual(error.exception.status_code, 400)
+
+    @patch("back.services.user_invitation.send_user_invitation_email")
+    def test_invitation_link_sets_password_and_confirms_email_once(self, send_invitation):
+        self.user.is_email_verified = False
+        self.session.commit()
+
+        issue_user_invitation(self.session, self.user)
+        raw_token = send_invitation.call_args.args[1]
+
+        reset_password(
+            PasswordResetToken(token=raw_token, new_password="invite-password"),
+            self.session,
+        )
+
+        self.assertTrue(self.user.is_email_verified)
+        self.assertTrue(verify_password("invite-password", self.user.hashed_password))
+        with self.assertRaises(HTTPException):
+            reset_password(
+                PasswordResetToken(token=raw_token, new_password="other-password"),
+                self.session,
+            )
+
+    @patch(
+        "back.services.user_invitation.send_user_invitation_email",
+        side_effect=RuntimeError("SMTP is not configured"),
+    )
+    def test_invitation_email_failure_is_explicit_and_keeps_account_recoverable(self, send_invitation):
+        self.user.is_email_verified = False
+        self.session.commit()
+
+        with self.assertRaises(HTTPException) as error:
+            issue_user_invitation(self.session, self.user)
+
+        self.assertEqual(error.exception.status_code, 503)
+        self.assertIn("volver a enviarla", error.exception.detail)
+        self.assertIsNotNone(
+            self.session.query(models.PasswordReset).filter_by(user_id=self.user.id).first()
+        )
+        send_invitation.assert_called_once()
 
 
 if __name__ == "__main__":

@@ -1,0 +1,102 @@
+=========================================================
+ SALDOSOK - PASOS A SEGUIR PARA TERMINAR EL PROYECTO
+=========================================================
+
+ESTADO ACTUAL:
+ - Back (FastAPI) + Base de datos (Postgres/Docker) funcionando
+ - Front conectado al back: apiClient, servicios, AuthProvider,
+   useAuth, rutas base y CORS configurado
+ - Vistas vacías listas para maquetar: Landing, Register, Plans,
+   PlansSelector, Dashboard
+
+---------------------------------------------------------
+ FASE 1 — ACCESO
+---------------------------------------------------------
+ 1. Landing pública (pages/Landing)
+    -> Presentación del producto + botones "Registrarme" e
+       "Iniciar sesión"
+
+ 2. Registro (pages/Register o en la Landing)
+    -> Formulario con formik + zod que llama register() del hook
+       useAuth(). Endpoint: POST /tenants/register
+
+ 3. Login (NO EXISTE TODAVIA)
+    -> Crear pages/Login que llame login(email, password).
+       Endpoint: POST /auth/token
+    -> Reutilizar el diseño del registro
+
+ 4. Rutas protegidas
+    -> Componente ProtectedRoute que use isAuthenticated
+       y redirija a /login si no hay sesión
+    -> Envolver /dashboard y todas las rutas privadas
+
+---------------------------------------------------------
+ FASE 2 — ESTRUCTURA PRIVADA
+---------------------------------------------------------
+ 5. Layout del panel
+    -> Recuperar el Sidebar solo dentro de las rutas privadas
+       (layout con Outlet)
+    -> Secciones: dashboard, facturas, empresas, usuarios,
+       configuración
+
+ 6. Dashboard (GET /dashboard/summary)
+    -> Tarjetas de indicadores + gráficos con recharts
+    -> Servicio ya creado: getDashboardSummary()
+
+---------------------------------------------------------
+ FASE 3 — MÓDULOS DE NEGOCIO (EN ESTE ORDEN)
+---------------------------------------------------------
+ 7. Empresas/contactos (PRIMERO: las facturas las necesitan)
+    -> Listar (GET /companies/), buscar por nombre
+       (GET /companies/search) o CUIT (GET /companies/cuit/{id})
+    -> Crear (POST), editar (PATCH), borrar (DELETE)
+
+ 8. Facturas de venta
+    -> Lista paginada (GET /invoices/sales/list)
+    -> Crear manualmente (POST /invoices/sales)
+    -> Editar (PATCH /invoices/sales/{id})
+
+ 9. Facturas de compra
+    -> Mismo patrón que ventas (/invoices/purchase)
+
+10. Carga por OCR (feature principal, dejar para el final)
+    -> Subir archivo: POST /invoices/extract (multipart, campo "file")
+    -> Mostrar borrador editable (InvoiceDraft)
+    -> Al confirmar: POST /invoices/sales o /invoices/purchase
+
+11. Cobros y pagos
+    -> Desde el detalle de factura:
+       POST /payments/collection (cobros de ventas)
+       POST /payments/payment   (pagos de compras)
+    -> Ver historial, editar (PUT), eliminar (DELETE)
+    -> El back recalcula el estado de la factura solo
+
+---------------------------------------------------------
+ FASE 4 — GESTIÓN Y PULIDO
+---------------------------------------------------------
+12. Usuarios (GET/POST /users)
+    -> Respetar límites del plan:
+       basico=1 | avanzado=3 | premium=5
+    -> Si el back responde 400 por límite, mostrar el mensaje
+
+13. Configuración de la empresa
+    -> Editar datos y cambiar plan: PATCH /tenants/me
+
+14. Pulido general
+    -> Unificar paleta (styles/palette.js)
+    -> Estados de carga (spinners)
+    -> Manejo de errores global (toasts con sonner)
+    -> Responsive
+    -> Cerrar sesión desde el Sidebar
+
+---------------------------------------------------------
+ PATRÓN DE TRABAJO (SE REPITE EN CADA MÓDULO)
+---------------------------------------------------------
+ a) Función en src/services/  (ej: companiesService.js)
+ b) Vista en src/pages/       (usa el servicio directamente)
+ c) Los datos ya viajan con token automáticamente vía apiClient
+ d) Errores del back llegan como mensaje legible para mostrar
+    en toast
+
+NOTA: no queda nada pendiente de infraestructura, todo lo que
+sigue es desarrollo de interfaz.

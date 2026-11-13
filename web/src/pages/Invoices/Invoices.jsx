@@ -52,6 +52,7 @@ import {
 import { filterInvoices } from './invoiceFilters';
 import {
   addDaysToDate,
+  companyTermDays,
   formatDateCountdown,
   formatInvoiceDate,
 } from './invoiceDates';
@@ -104,10 +105,13 @@ const linkedInvoiceNumber = (invoices, originId) => {
   return originInvoice ? invoiceNumberLabel(originInvoice) : `#${originId}`;
 };
 const remainingBalance = (total, paid) => Math.max(Number(total || 0) - Number(paid || 0), 0);
-const companyTermDays = (company, field) => {
-  const days = Number(company?.[field] ?? company?.dias_credito ?? 0);
-  return Number.isInteger(days) && days >= 0 ? days : 0;
-};
+const isAdjustmentNote = (invoice) => (
+  invoice.tipo_comprobante === 'nota_credito'
+  || invoice.tipo_comprobante === 'nota_debito'
+);
+const noteImpact = (invoice) => (
+  `${invoice.tipo_comprobante === 'nota_credito' ? '-' : '+'}${formatCurrency(invoice.monto_total)}`
+);
 const initialInvoiceFilters = {
   status: 'all',
   dateFrom: '',
@@ -933,21 +937,32 @@ const Invoices = () => {
                     </TableCell>
                     <TableCell className="numeric">
                       {formatCurrency(invoice.monto_total)}
-                      <span>
-                        Resta cobrar: {formatCurrency(remainingBalance(
-                          invoice.monto_total,
-                          invoice.monto_cobrado,
-                        ))}
-                      </span>
+                      {isAdjustmentNote(invoice) ? (
+                        <span>Impacto en comprobante: {noteImpact(invoice)}</span>
+                      ) : (
+                        <>
+                          {Number(invoice.monto_ajustado) !== Number(invoice.monto_total) && (
+                            <span>Total con notas: {formatCurrency(invoice.monto_ajustado)}</span>
+                          )}
+                          <span>
+                            Resta cobrar: {formatCurrency(remainingBalance(
+                              invoice.monto_ajustado ?? invoice.monto_total,
+                              invoice.monto_cobrado,
+                            ))}
+                          </span>
+                        </>
+                      )}
                     </TableCell>
                     <TableCell>
                       <StatusBadge
-                        className={invoice.estado === 'pendiente'
+                        className={!isAdjustmentNote(invoice) && invoice.estado === 'pendiente'
                           ? 'invoice-status--pending'
-                          : invoice.estado === 'pagado' ? 'invoice-status--settled' : undefined}
+                          : !isAdjustmentNote(invoice) && invoice.estado === 'pagado' ? 'invoice-status--settled' : undefined}
                         $status={invoice.estado === 'pagado' ? 'saldada' : invoice.estado === 'vencida' ? 'vencida' : 'pendiente'}
                       >
-                        {invoice.estado === 'pagado' ? 'Cobrado' : invoice.estado || 'pendiente'}
+                        {isAdjustmentNote(invoice)
+                          ? 'Aplicada'
+                          : invoice.estado === 'pagado' ? 'Cobrado' : invoice.estado || 'pendiente'}
                       </StatusBadge>
                     </TableCell>
                     <TableCell>
@@ -961,9 +976,9 @@ const Invoices = () => {
                             setFormalizing(null);
                             setMovementDialog({ direction: 'sales', invoice });
                           }}
-                          disabled={invoice.estado === 'pagado' || isSubmitting}
+                          disabled={isAdjustmentNote(invoice) || invoice.estado === 'pagado' || isSubmitting}
                         >
-                          Registrar cobro
+                          {isAdjustmentNote(invoice) ? 'Nota aplicada' : 'Registrar cobro'}
                         </Button>
                       </ActionCell>
                     </TableCell>
@@ -1043,21 +1058,30 @@ const Invoices = () => {
                     </TableCell>
                     <TableCell className="numeric">
                       {formatCurrency(invoice.monto_total)}
-                      <span>
-                        Resta pagar: {formatCurrency(remainingBalance(
-                          invoice.monto_total,
-                          invoice.monto_pagado,
-                        ))}
-                      </span>
+                      {isAdjustmentNote(invoice) ? (
+                        <span>Impacto en comprobante: {noteImpact(invoice)}</span>
+                      ) : (
+                        <>
+                          {Number(invoice.monto_ajustado) !== Number(invoice.monto_total) && (
+                            <span>Total con notas: {formatCurrency(invoice.monto_ajustado)}</span>
+                          )}
+                          <span>
+                            Resta pagar: {formatCurrency(remainingBalance(
+                              invoice.monto_ajustado ?? invoice.monto_total,
+                              invoice.monto_pagado,
+                            ))}
+                          </span>
+                        </>
+                      )}
                     </TableCell>
                     <TableCell>
                       <StatusBadge
-                        className={invoice.estado === 'pendiente'
+                        className={!isAdjustmentNote(invoice) && invoice.estado === 'pendiente'
                           ? 'invoice-status--pending'
-                          : invoice.estado === 'pagado' ? 'invoice-status--settled' : undefined}
+                          : !isAdjustmentNote(invoice) && invoice.estado === 'pagado' ? 'invoice-status--settled' : undefined}
                         $status={invoice.estado === 'pagado' ? 'saldada' : invoice.estado === 'vencida' ? 'vencida' : 'pendiente'}
                       >
-                        {invoice.estado || 'pendiente'}
+                        {isAdjustmentNote(invoice) ? 'Aplicada' : invoice.estado || 'pendiente'}
                       </StatusBadge>
                     </TableCell>
                     <TableCell>
@@ -1071,9 +1095,9 @@ const Invoices = () => {
                             setFormalizing(null);
                             setMovementDialog({ direction: 'purchases', invoice });
                           }}
-                          disabled={invoice.estado === 'pagado' || isSubmitting}
+                          disabled={isAdjustmentNote(invoice) || invoice.estado === 'pagado' || isSubmitting}
                         >
-                          Registrar pago
+                          {isAdjustmentNote(invoice) ? 'Nota aplicada' : 'Registrar pago'}
                         </Button>
                         {!invoice.factura_recibida && (
                           <Button type="button" $variant="secondary" onClick={() => {

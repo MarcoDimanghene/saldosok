@@ -48,7 +48,9 @@ const ResetPassword = () => {
     <LoginContainer>
       <LoginCard>
         <LoginTitle>Crear nueva contraseña</LoginTitle>
-        <LoginDescription>El enlace de recuperación es válido durante una hora y solo se puede usar una vez.</LoginDescription>
+        <LoginDescription>
+          El enlace es de un solo uso y vence en el plazo indicado en el correo.
+        </LoginDescription>
         <LoginForm onSubmit={handleSubmit}>
           <FormField>
             <FormLabel htmlFor="new-password">Nueva contraseña</FormLabel>

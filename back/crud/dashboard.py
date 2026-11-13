@@ -10,6 +10,7 @@ from sqlalchemy import func, case, or_
 from datetime import date, timedelta
 from decimal import Decimal
 from .. import models
+from back.services.invoice_balances import get_adjusted_invoice_totals
 
 
 # Expresión SQL: monto con signo según el tipo de comprobante
@@ -61,26 +62,33 @@ def _obtener_saldos_por_fecha(
         .group_by(payment_invoice_column)
         .subquery()
     )
-    saldo_pendiente = (
-        func.coalesce(invoice_model.monto_total, 0)
-        - func.coalesce(pagos_por_factura.c.total_pagado, 0)
-    )
-
-    return (
-        db.query(due_date_column, saldo_pendiente)
+    rows = (
+        db.query(
+            invoice_model.id,
+            due_date_column,
+            func.coalesce(pagos_por_factura.c.total_pagado, 0),
+        )
         .outerjoin(
             pagos_por_factura,
             pagos_por_factura.c.invoice_id == invoice_model.id,
         )
         .filter(
             invoice_model.tenant_id == tenant_id,
+            or_(
+                invoice_model.tipo_comprobante == "factura",
+                invoice_model.tipo_comprobante.is_(None),
+            ),
             due_date_column >= desde,
             due_date_column <= hasta,
-            saldo_pendiente > 0,
-            or_(invoice_model.estado != "pagado", invoice_model.estado.is_(None)),
         )
         .all()
     )
+    adjusted_totals = get_adjusted_invoice_totals(db, tenant_id, invoice_model)
+    return [
+        (due_date, adjusted_totals.get(invoice_id, Decimal("0.00")) - Decimal(paid or 0))
+        for invoice_id, due_date, paid in rows
+        if adjusted_totals.get(invoice_id, Decimal("0.00")) - Decimal(paid or 0) > 0
+    ]
 
 
 def get_dashboard_summary(db: Session, tenant_id: int) -> dict:

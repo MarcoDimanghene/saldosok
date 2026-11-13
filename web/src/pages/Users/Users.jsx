@@ -5,6 +5,7 @@ import {
   createUser,
   deleteUser,
   getUsers,
+  resendUserInvitation,
   updateUser,
 } from '../../services/userService';
 import {
@@ -24,7 +25,7 @@ import {
   UserRow,
 } from './Users.styles';
 
-const initialForm = { nombre: '', username: '', email: '', password: '' };
+const initialForm = { nombre: '', username: '', email: '' };
 
 const Users = () => {
   const { user: currentUser, tenant } = useAuth();
@@ -33,8 +34,6 @@ const Users = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
-  const [resetTarget, setResetTarget] = useState(null);
-  const [resetPassword, setResetPassword] = useState('');
 
   const userLimit = MAX_USERS_PER_TENANT;
   const atLimit = users.length >= userLimit;
@@ -89,43 +88,35 @@ const Users = () => {
       setMessage({ error: true, text: 'Ingresa un correo electrónico válido para el usuario.' });
       return;
     }
-    if (form.password.length < 6 || form.password.length > 128) {
-      setMessage({ error: true, text: 'La contraseña debe tener entre 6 y 128 caracteres.' });
-      return;
-    }
-
     setIsSubmitting(true);
     try {
       const result = await createUser({
         nombre: form.nombre.trim(),
         username: form.username.trim(),
         email: form.email.trim(),
-        password: form.password,
       });
       setForm(initialForm);
       setMessage({ error: false, text: result.message || 'El usuario se creó correctamente.' });
       await loadUsers();
     } catch (error) {
       setMessage({ error: true, text: error.message || 'No se pudo crear el usuario.' });
+      await loadUsers();
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleResetPassword = async (event, account) => {
-    event.preventDefault();
+  const handleResendInvitation = async (account) => {
     setMessage(null);
-    if (resetPassword.length < 6 || resetPassword.length > 128) {
-      setMessage({ error: true, text: 'La contraseña debe tener entre 6 y 128 caracteres.' });
-      return;
-    }
+    setIsSubmitting(true);
     try {
-      await updateUser(account.id, { password: resetPassword });
-      setResetPassword('');
-      setResetTarget(null);
-      setMessage({ error: false, text: `La contraseña de ${account.username} se restableció.` });
+      const result = await resendUserInvitation(account.id);
+      setMessage({ error: false, text: result.message });
+      await loadUsers();
     } catch (error) {
-      setMessage({ error: true, text: error.message || 'No se pudo restablecer la contraseña.' });
+      setMessage({ error: true, text: error.message || 'No se pudo reenviar la invitación.' });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -160,7 +151,10 @@ const Users = () => {
     <>
       <PageHeader>
         <h1>Usuarios del espacio de trabajo</h1>
-        <p>Administra las cuentas que comparten los datos de {tenant?.razon_social || 'tu espacio de trabajo'}.</p>
+        <p>
+          Administra quién accede a {tenant?.razon_social || 'tu espacio de trabajo'}.
+          Cada persona establece su contraseña desde una invitación por correo.
+        </p>
       </PageHeader>
 
       {message && (
@@ -208,19 +202,6 @@ const Users = () => {
                 required
               />
             </FormField>
-            <FormField>
-              <label htmlFor="new-user-password">Contraseña inicial</label>
-              <FormInput
-                id="new-user-password"
-                type="password"
-                value={form.password}
-                onChange={(event) => setForm({ ...form, password: event.target.value })}
-                autoComplete="new-password"
-                minLength={6}
-                maxLength={128}
-                required
-              />
-            </FormField>
             <PrimaryButton
               type="submit"
               disabled={atLimit || isSubmitting || isLoading}
@@ -249,6 +230,12 @@ const Users = () => {
                     <span>Usuario: {account.username}</span>
                     {account.email && <span>Correo: {account.email}</span>}
                     <span>{account.is_active ? 'Activo' : 'Inactivo'}</span>
+                    <span>
+                      {account.is_email_verified ? 'Correo confirmado' : 'Invitación pendiente'}
+                    </span>
+                    {!account.is_email_verified && !account.email && (
+                      <span>Agrega un correo para enviar la invitación</span>
+                    )}
                   </UserDetails>
                   {!account.is_tenant_admin && (
                     <>
@@ -265,34 +252,16 @@ const Users = () => {
                         >
                           Eliminar
                         </SecondaryButton>
-                        <SecondaryButton
-                          type="button"
-                          onClick={() => {
-                            setResetTarget(resetTarget === account.id ? null : account.id);
-                            setResetPassword('');
-                          }}
-                        >
-                          Restablecer contraseña
-                        </SecondaryButton>
+                        {!account.is_email_verified && account.email && account.is_active && (
+                          <SecondaryButton
+                            type="button"
+                            onClick={() => handleResendInvitation(account)}
+                            disabled={isSubmitting}
+                          >
+                            Reenviar invitación
+                          </SecondaryButton>
+                        )}
                       </UserActions>
-                      {resetTarget === account.id && (
-                        <UserForm onSubmit={(event) => handleResetPassword(event, account)}>
-                          <FormField>
-                            <label htmlFor={`reset-password-${account.id}`}>Nueva contraseña</label>
-                            <FormInput
-                              id={`reset-password-${account.id}`}
-                              type="password"
-                              autoComplete="new-password"
-                              minLength={6}
-                              maxLength={128}
-                              value={resetPassword}
-                              onChange={(event) => setResetPassword(event.target.value)}
-                              required
-                            />
-                          </FormField>
-                          <PrimaryButton type="submit">Guardar contraseña</PrimaryButton>
-                        </UserForm>
-                      )}
                     </>
                   )}
                 </UserRow>

@@ -6,6 +6,11 @@ function parseDate(dateValue) {
   return Date.UTC(Number(year), Number(month) - 1, Number(day));
 }
 
+export function companyTermDays(company, field) {
+  const days = Number(company?.[field] ?? company?.dias_credito ?? 0);
+  return Number.isInteger(days) && days >= 0 ? days : 0;
+}
+
 export function addDaysToDate(dateValue, daysValue) {
   const timestamp = parseDate(dateValue);
   if (timestamp === null || daysValue === '' || daysValue === null) return '';

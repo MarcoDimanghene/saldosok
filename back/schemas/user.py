@@ -15,11 +15,9 @@ class UserBase(BaseModel):
     is_active: Optional[bool] = True
 
 
-# 2. Schema para Crear Usuario (Entrada)
-# Recibe el password en texto plano desde el cliente/endpoint
+# 2. Schema para invitar un nuevo usuario
 class UserCreate(UserBase):
     email: EmailStr
-    password: str = Field(..., min_length=6, max_length=128)
 
 
 # 3. Schema para Actualizar Usuario (Entrada opcional)
@@ -28,7 +26,6 @@ class UserUpdate(BaseModel):
     nombre: Optional[str] = None
     username: Optional[str] = Field(None, min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9_.-]+$")
     email: Optional[EmailStr] = None
-    password: Optional[str] = Field(None, min_length=6, max_length=128)
     is_active: Optional[bool] = None
 
 

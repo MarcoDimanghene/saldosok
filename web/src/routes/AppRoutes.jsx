@@ -5,6 +5,7 @@ import Users from '../pages/Users/Users';
 import Companies from '../pages/Companies/Companies';
 import Invoices from '../pages/Invoices/Invoices';
 import Reports from '../pages/Reports/Reports';
+import AuditLog from '../pages/Audit/AuditLog';
 import ImportExcel from '../pages/ImportExcel/ImportExcel';
 import EmailVerification from '../pages/EmailVerification/EmailVerification';
 import ForgotPassword from '../pages/ForgotPassword/ForgotPassword';
@@ -41,6 +42,14 @@ const AppRoutes = () => {
         <Route path="/invoices" element={<Invoices />} />
         <Route path="/imports" element={<ImportExcel />} />
         <Route path="/reports" element={<Reports />} />
+        <Route
+          path="/audit"
+          element={(
+            <ProtectedRoute adminOnly>
+              <AuditLog />
+            </ProtectedRoute>
+          )}
+        />
         <Route
           path="/users"
           element={(

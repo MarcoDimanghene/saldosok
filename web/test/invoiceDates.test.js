@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   addDaysToDate,
+  companyTermDays,
   daysUntil,
   formatDateCountdown,
   formatInvoiceDate,
@@ -9,10 +10,29 @@ import {
 
 test('adds company payment terms to invoice dates without timezone shifts', () => {
   assert.equal(addDaysToDate('2026-11-12', 30), '2026-12-12');
+  assert.equal(addDaysToDate('2026-11-12', 45), '2026-12-27');
   assert.equal(addDaysToDate('2026-12-20', '15'), '2027-01-04');
   assert.equal(addDaysToDate('2024-02-28', 1), '2024-02-29');
   assert.equal(addDaysToDate('2026-11-12', ''), '');
   assert.equal(addDaysToDate('invalid', 10), '');
+});
+
+test('uses the company collection or payment term as the default', () => {
+  const company = {
+    dias_credito: 30,
+    dias_cobro: 15,
+    dias_pago: 45,
+  };
+
+  const collectionDays = companyTermDays(company, 'dias_cobro');
+  const paymentDays = companyTermDays(company, 'dias_pago');
+
+  assert.equal(collectionDays, 15);
+  assert.equal(addDaysToDate('2026-11-12', collectionDays), '2026-11-27');
+  assert.equal(paymentDays, 45);
+  assert.equal(addDaysToDate('2026-11-12', paymentDays), '2026-12-27');
+  assert.equal(companyTermDays({ dias_credito: 30 }, 'dias_pago'), 30);
+  assert.equal(companyTermDays({ dias_pago: -1 }, 'dias_pago'), 0);
 });
 
 test('counts days to due dates without timezone shifts', () => {

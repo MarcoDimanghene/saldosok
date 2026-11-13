@@ -4,10 +4,26 @@ from email.message import EmailMessage
 from database.config import settings
 
 
-def send_verification_email(recipient: str, token: str) -> None:
+def _send_message(message: EmailMessage) -> None:
     if not all((settings.SMTP_HOST, settings.SMTP_FROM)):
         raise RuntimeError("El envío de correo no está configurado.")
 
+    if settings.SMTP_PORT == 465:
+        with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15) as server:
+            if settings.SMTP_USER:
+                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
+            server.send_message(message)
+        return
+
+    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15) as server:
+        if settings.SMTP_USE_TLS:
+            server.starttls()
+        if settings.SMTP_USER:
+            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
+        server.send_message(message)
+
+
+def send_verification_email(recipient: str, token: str) -> None:
     verification_url = f"{settings.FRONTEND_URL.rstrip('/')}/verify-email?token={token}"
     message = EmailMessage()
     message["Subject"] = "Confirma tu correo electrónico - Saldos Ok"
@@ -19,25 +35,10 @@ def send_verification_email(recipient: str, token: str) -> None:
         "El enlace vence en 24 horas. Si no solicitaste esta cuenta, ignora este mensaje."
     )
 
-    if settings.SMTP_PORT == 465:
-        with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15) as server:
-            if settings.SMTP_USER:
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
-            server.send_message(message)
-        return
-
-    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15) as server:
-        if settings.SMTP_USE_TLS:
-            server.starttls()
-        if settings.SMTP_USER:
-            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
-        server.send_message(message)
+    _send_message(message)
 
 
 def send_password_reset_email(recipient: str, token: str) -> None:
-    if not all((settings.SMTP_HOST, settings.SMTP_FROM)):
-        raise RuntimeError("El envío de correo no está configurado.")
-
     reset_url = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={token}"
     message = EmailMessage()
     message["Subject"] = "Restablece tu contraseña - Saldos Ok"
@@ -49,16 +50,23 @@ def send_password_reset_email(recipient: str, token: str) -> None:
         "El enlace vence en una hora. Si no solicitaste este cambio, ignora este mensaje."
     )
 
-    if settings.SMTP_PORT == 465:
-        with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15) as server:
-            if settings.SMTP_USER:
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
-            server.send_message(message)
-        return
+    _send_message(message)
 
-    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15) as server:
-        if settings.SMTP_USE_TLS:
-            server.starttls()
-        if settings.SMTP_USER:
-            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
-        server.send_message(message)
+
+def send_user_invitation_email(recipient: str, token: str) -> None:
+    if not all((settings.SMTP_HOST, settings.SMTP_FROM)):
+        raise RuntimeError("El envío de correo no está configurado.")
+
+    invitation_url = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={token}"
+    message = EmailMessage()
+    message["Subject"] = "Invitación a Saldos Ok"
+    message["From"] = settings.SMTP_FROM or ""
+    message["To"] = recipient
+    message.set_content(
+        "Te invitaron a un espacio de trabajo de Saldos Ok. "
+        "Usa este enlace para establecer tu contraseña e ingresar:\n\n"
+        f"{invitation_url}\n\n"
+        "El enlace es de un solo uso y vence en 24 horas. "
+        "Si no esperabas esta invitación, ignora este mensaje."
+    )
+    _send_message(message)

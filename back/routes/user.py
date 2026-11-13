@@ -1,3 +1,5 @@
+import secrets
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -9,7 +11,7 @@ from database.security import (
     get_current_user,
     get_password_hash,
 )
-from back.services.email_verification import issue_email_verification
+from back.services.user_invitation import issue_user_invitation
 
 
 router = APIRouter(
@@ -25,6 +27,12 @@ def create_user_for_tenant(
     current_user: models.User = Depends(get_current_tenant_admin)
 ):
     """Crea un usuario dentro del Tenant activo, hasta el máximo permitido."""
+    if user.is_active is False:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="No se puede invitar una cuenta inactiva. Crea la cuenta activa y desactívala después.",
+        )
+
     limite = crud.MAX_USERS_PER_TENANT
     usuarios_actuales = crud.count_users(db=db, tenant_id=current_user.tenant_id)
 
@@ -56,20 +64,15 @@ def create_user_for_tenant(
             detail="Ya existe una cuenta con ese DNI.",
         )
 
-    hashed_pass = get_password_hash(user.password)
+    hashed_pass = get_password_hash(secrets.token_urlsafe(48))
     created_user = crud.create_user(
         db=db, tenant_id=current_user.tenant_id, user=user, hashed_password=hashed_pass
     )
-    try:
-        issue_email_verification(db, created_user)
-    except HTTPException:
-        message = (
-            "El usuario se creó, pero no se pudo enviar la confirmación. "
-            "Puede solicitar un nuevo enlace desde la pantalla de confirmación."
-        )
-    else:
-        message = "El usuario se creó. Debe confirmar su correo para habilitar la recuperación."
-    return {"user": created_user, "message": message}
+    issue_user_invitation(db, created_user)
+    return {
+        "user": created_user,
+        "message": "Se creó la cuenta y se envió un enlace para establecer la contraseña.",
+    }
 
 
 @router.get("/", response_model=List[schemas.UserResponse])
@@ -100,6 +103,38 @@ def read_user_by_id(
     if not db_user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado.")
     return db_user
+
+
+@router.post("/{user_id}/invitation", response_model=schemas.UserCreateResponse)
+def resend_user_invitation(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_tenant_admin),
+):
+    user = crud.get_user(db=db, tenant_id=current_user.tenant_id, user_id=user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado.")
+    if user.is_email_verified:
+        raise HTTPException(
+            status_code=409,
+            detail="El usuario ya confirmó su correo; puede recuperar su contraseña desde el login.",
+        )
+    if not user.is_active:
+        raise HTTPException(
+            status_code=409,
+            detail="Activa la cuenta antes de reenviar la invitación.",
+        )
+    if not user.email:
+        raise HTTPException(
+            status_code=409,
+            detail="Agrega un correo electrónico antes de reenviar la invitación.",
+        )
+
+    issue_user_invitation(db, user, action="invitation_resent")
+    return {
+        "user": user,
+        "message": "Se envió un nuevo enlace para establecer la contraseña.",
+    }
 
 
 @router.patch("/{user_id}", response_model=schemas.UserResponse)
@@ -152,16 +187,11 @@ def update_user_by_id(
                 detail="Ya existe una cuenta con ese DNI.",
             )
 
-    hashed_pass = None
-    if user_update.password:
-        hashed_pass = get_password_hash(user_update.password)
-
     db_user = crud.update_user(
         db=db,
         tenant_id=current_user.tenant_id,
         user_id=user_id,
         user_update=user_update,
-        hashed_password=hashed_pass
     )
     if not db_user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado.")

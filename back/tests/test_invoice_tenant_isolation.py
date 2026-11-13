@@ -13,6 +13,8 @@ from back.crud.invoices import (
     create_purchase_invoice,
     create_pending_purchase,
     create_sales_invoice,
+    get_listpurchase_invoice,
+    get_listsales_invoices,
     update_purchase_invoice,
     update_sales_invoice,
 )
@@ -25,8 +27,8 @@ from back.schemas.invoices import (
     SalesInvoiceCreate,
     SalesInvoiceUpdate,
 )
-from back.crud.payments import create_payment
-from back.schemas.payments import PaymentCreate
+from back.crud.payments import create_collection, create_payment
+from back.schemas.payments import CollectionCreate, PaymentCreate
 from database.database import Base
 
 
@@ -169,6 +171,141 @@ class InvoiceTenantIsolationTests(unittest.TestCase):
 
         self.assertEqual(note.tipo_comprobante, "nota_credito")
         self.assertEqual(note.factura_origen_id, origin.id)
+
+    def test_sales_credit_note_reduces_the_origin_balance_and_collection_limit(self):
+        origin = create_sales_invoice(
+            self.session,
+            self.tenant.id,
+            self.sales_invoice_data(self.local_company.id),
+        )
+        note_data = self.sales_invoice_data(self.local_company.id).model_copy(
+            update={
+                "invoice_number": 2,
+                "tipo_comprobante": "nota_credito",
+                "factura_origen_id": origin.id,
+                "total_amount": Decimal("25.00"),
+            }
+        )
+        credit_note = create_sales_invoice(self.session, self.tenant.id, note_data)
+
+        listed_origin = next(
+            invoice for invoice in get_listsales_invoices(self.session, self.tenant.id)
+            if invoice.id == origin.id
+        )
+        self.assertEqual(listed_origin.monto_ajustado, Decimal("75.00"))
+        summary = get_dashboard_summary(self.session, self.tenant.id)
+        self.assertEqual(summary["collections_this_week"], Decimal("75.00"))
+        self.assertEqual(summary["upcoming_collections"][0]["monto"], Decimal("75.00"))
+        with self.assertRaises(HTTPException) as note_error:
+            create_collection(
+                self.session,
+                self.tenant.id,
+                CollectionCreate(
+                    invoice_id=credit_note.id,
+                    amount=Decimal("1.00"),
+                    collection_date=date.today(),
+                ),
+            )
+        self.assertEqual(note_error.exception.status_code, 400)
+
+        create_collection(
+            self.session,
+            self.tenant.id,
+            CollectionCreate(
+                invoice_id=origin.id,
+                amount=Decimal("75.00"),
+                collection_date=date.today(),
+            ),
+        )
+        with self.assertRaises(HTTPException) as error:
+            create_collection(
+                self.session,
+                self.tenant.id,
+                CollectionCreate(
+                    invoice_id=origin.id,
+                    amount=Decimal("0.01"),
+                    collection_date=date.today(),
+                ),
+            )
+
+        self.assertEqual(error.exception.status_code, 400)
+        self.assertEqual(origin.estado, "pagado")
+        summary = get_dashboard_summary(self.session, self.tenant.id)
+        self.assertEqual(summary["total_sales"], Decimal("75.00"))
+        self.assertEqual(summary["accounts_receivable"], Decimal("0.00"))
+
+    def test_debit_note_linked_to_credit_note_reverses_its_adjustment(self):
+        origin = create_sales_invoice(
+            self.session,
+            self.tenant.id,
+            self.sales_invoice_data(self.local_company.id),
+        )
+        credit_note = create_sales_invoice(
+            self.session,
+            self.tenant.id,
+            self.sales_invoice_data(self.local_company.id).model_copy(
+                update={
+                    "invoice_number": 2,
+                    "tipo_comprobante": "nota_credito",
+                    "factura_origen_id": origin.id,
+                    "total_amount": Decimal("30.00"),
+                }
+            ),
+        )
+        create_sales_invoice(
+            self.session,
+            self.tenant.id,
+            self.sales_invoice_data(self.local_company.id).model_copy(
+                update={
+                    "invoice_number": 3,
+                    "tipo_comprobante": "nota_debito",
+                    "factura_origen_id": credit_note.id,
+                    "total_amount": Decimal("30.00"),
+                }
+            ),
+        )
+
+        listed_origin = next(
+            invoice for invoice in get_listsales_invoices(self.session, self.tenant.id)
+            if invoice.id == origin.id
+        )
+        self.assertEqual(listed_origin.monto_ajustado, Decimal("100.00"))
+        self.assertEqual(
+            get_dashboard_summary(self.session, self.tenant.id)["total_sales"],
+            Decimal("100.00"),
+        )
+
+    def test_purchase_debit_note_increases_the_payable_balance(self):
+        origin = create_purchase_invoice(
+            self.session,
+            self.tenant.id,
+            self.purchase_invoice_data(self.local_company.id),
+        )
+        note_data = self.purchase_invoice_data(self.local_company.id).model_copy(
+            update={
+                "invoice_number": 2,
+                "tipo_comprobante": "nota_debito",
+                "factura_origen_id": origin.id,
+                "total_amount": Decimal("15.00"),
+            }
+        )
+        create_purchase_invoice(self.session, self.tenant.id, note_data)
+
+        listed_origin = next(
+            invoice for invoice in get_listpurchase_invoice(self.session, self.tenant.id)
+            if invoice.id == origin.id
+        )
+        self.assertEqual(listed_origin.monto_ajustado, Decimal("115.00"))
+        create_payment(
+            self.session,
+            self.tenant.id,
+            PaymentCreate(
+                invoice_id=origin.id,
+                amount=Decimal("115.00"),
+                payment_date=date.today(),
+            ),
+        )
+        self.assertEqual(origin.estado, "pagado")
 
     def test_pending_purchase_gets_system_number_and_can_be_completed_after_payment(self):
         purchase = create_pending_purchase(

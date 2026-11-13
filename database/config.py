@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     SMTP_FROM: str | None = None
     SMTP_USE_TLS: bool = True
     FRONTEND_URL: str = "http://localhost:5173"
+    APP_ENV: str = "development"
+    ALLOW_DEMO_SEED: bool = False
 
     # Configuración para leer el archivo .env
     model_config = SettingsConfigDict(

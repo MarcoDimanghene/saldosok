@@ -50,11 +50,13 @@ const InvoiceDetailsDialog = ({
     ? invoice.numero_interno || `Compra ${invoice.id}`
     : `${invoiceType} ${invoiceNumberLabel(invoice)}`;
   const relatedInvoices = isSales ? salesInvoices : purchaseInvoices;
+  const isNote = ['nota_credito', 'nota_debito'].includes(invoice.tipo_comprobante);
   const originInvoice = relatedInvoices.find(
     (item) => item.id === invoice.factura_origen_id,
   );
   const paidAmount = Number(isSales ? invoice.monto_cobrado : invoice.monto_pagado) || 0;
-  const outstandingAmount = Math.max(Number(invoice.monto_total || 0) - paidAmount, 0);
+  const adjustedTotal = Number(invoice.monto_ajustado ?? invoice.monto_total) || 0;
+  const outstandingAmount = Math.max((isNote ? 0 : adjustedTotal) - paidAmount, 0);
   const recipient = isSales
     ? companyNames.get(invoice.cliente_id) || 'Cliente no encontrado'
     : companyNames.get(invoice.receptor_id) || 'Sin empresa destinataria registrada';
@@ -134,6 +136,12 @@ const InvoiceDetailsDialog = ({
             <span>Importe</span>
             <strong>{currency.format(Number(invoice.monto_total) || 0)}</strong>
           </InvoiceDetailItem>
+          {!isNote && adjustedTotal !== Number(invoice.monto_total || 0) && (
+            <InvoiceDetailItem>
+              <span>Importe con notas aplicadas</span>
+              <strong>{currency.format(adjustedTotal)}</strong>
+            </InvoiceDetailItem>
+          )}
           <InvoiceDetailItem>
             <span>{isSales ? 'Cobrado' : 'Pagado'}</span>
             <strong>{currency.format(paidAmount)}</strong>
@@ -144,7 +152,7 @@ const InvoiceDetailsDialog = ({
           </InvoiceDetailItem>
           <InvoiceDetailItem>
             <span>Estado</span>
-            <strong>{invoice.estado || 'pendiente'}</strong>
+            <strong>{isNote ? 'Aplicada a comprobante vinculado' : invoice.estado || 'pendiente'}</strong>
           </InvoiceDetailItem>
           <InvoiceDetailItem>
             <span>Fecha de emisión</span>
@@ -232,7 +240,9 @@ const InvoiceDetailsDialog = ({
           </section>
         )}
 
-        {isFormalPurchase && (!invoice.tipo_comprobante || invoice.tipo_comprobante === 'factura') && (
+        {isFormalPurchase && (!invoice.tipo_comprobante
+          || invoice.tipo_comprobante === 'factura'
+          || invoice.tipo_comprobante === 'nota_credito') && (
           <section>
             <SectionHeading>
               <h3>Notas de crédito y débito</h3>
@@ -262,14 +272,16 @@ const InvoiceDetailsDialog = ({
           </section>
         )}
 
-        <section>
-          <h3>Historial de {isSales ? 'cobros' : 'pagos'}</h3>
-          <InvoiceMovementEditor
-            direction={direction}
-            invoiceId={invoice.id}
-            onUpdated={() => onUpdated(direction)}
-          />
-        </section>
+        {!isNote && (
+          <section>
+            <h3>Historial de {isSales ? 'cobros' : 'pagos'}</h3>
+            <InvoiceMovementEditor
+              direction={direction}
+              invoiceId={invoice.id}
+              onUpdated={() => onUpdated(direction)}
+            />
+          </section>
+        )}
       </InvoiceDialogContent>
     </InvoiceDialog>
   );

@@ -14,14 +14,16 @@
 
 from datetime import date, timedelta
 from decimal import Decimal
+import secrets
+from urllib.parse import urlparse
 
 from database.database import SessionLocal
+from database.config import settings
 from database.security import get_password_hash
 from back import models
 
 # Datos fijos del seed
 TENANT_CUIT = "30111111111"
-CLAVE_USUARIOS = "789551"
 
 CLIENTES = [
     ("Mercado Central SA", "20111111111"),
@@ -52,7 +54,32 @@ def _fecha_previo_mes() -> date:
     return ultimo_mes.replace(day=10)
 
 
+def _validate_demo_seed_target(
+    database_url: str,
+    app_env: str,
+    allow_demo_seed: bool,
+) -> None:
+    if not allow_demo_seed:
+        raise RuntimeError(
+            "Seed demo deshabilitado. Configura ALLOW_DEMO_SEED=true solo para desarrollo local."
+        )
+    if app_env.strip().lower() in {"prod", "production"}:
+        raise RuntimeError("El seed demo no puede ejecutarse en producción.")
+
+    parsed_url = urlparse(database_url)
+    if parsed_url.scheme.startswith("sqlite"):
+        return
+    if parsed_url.hostname not in {"localhost", "127.0.0.1", "::1"}:
+        raise RuntimeError("El seed demo solo puede ejecutarse contra una base local.")
+
+
 def seed():
+    _validate_demo_seed_target(
+        settings.DATABASE_URL,
+        settings.APP_ENV,
+        settings.ALLOW_DEMO_SEED,
+    )
+    demo_password = secrets.token_urlsafe(18)
     db = SessionLocal()
     try:
         # ---------- 0. BORRADO DE DATOS ANTERIORES ----------
@@ -83,10 +110,11 @@ def seed():
 
         # ---------- 2. USUARIOS ----------
         # La clave se guarda SIEMPRE hasheada (bcrypt), nunca en texto plano.
-        hash_clave = get_password_hash(CLAVE_USUARIOS)
+        hash_clave = get_password_hash(demo_password)
         db.add_all([
             models.User(nombre="Admin", username="admin", email="admin@demo.com",
-                        hashed_password=hash_clave, is_active=True, tenant_id=tenant.id),
+                        hashed_password=hash_clave, is_active=True, is_tenant_admin=True,
+                        tenant_id=tenant.id),
             models.User(nombre="Marco", username="marco", email="marco@demo.com",
                         hashed_password=hash_clave, is_active=True, tenant_id=tenant.id),
         ])
@@ -238,7 +266,7 @@ def seed():
 
         # ---------- 7. RESUMEN ----------
         print(f"SEED OK - tenant '{tenant.razon_social}' (id {tenant.id})")
-        print(f"  usuarios: admin@demo.com y marco@demo.com (clave {CLAVE_USUARIOS})")
+        print(f"  usuarios: admin@demo.com y marco@demo.com (clave temporal: {demo_password})")
         print(f"  empresas: {db.query(models.Company).filter_by(tenant_id=tenant.id).count()}")
         print(f"  ventas:   {db.query(models.SalesInvoice).filter_by(tenant_id=tenant.id).count()} "
               f"+ {db.query(models.SalesCollection).filter_by(tenant_id=tenant.id).count()} cobros")

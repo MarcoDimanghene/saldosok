@@ -9,7 +9,7 @@ from database.config import settings  # Asegura que las variables de entorno se 
 from back import models  # Asegura que SQLAlchemy reconozca todos los modelos antes de create_all
 
 # Routers
-from back.routes import auth, companies, dashboard, extract, imports, invoices, payments, tenants, user
+from back.routes import audit, auth, companies, dashboard, extract, imports, invoices, payments, tenants, user
 
 # Crea las tablas faltantes en la base de datos
 Base.metadata.create_all(bind=engine)
@@ -41,6 +41,7 @@ app.include_router(dashboard.router)
 # 2. Registrar los routers del resto del sistema
 app.include_router(companies.router)
 app.include_router(user.router)
+app.include_router(audit.router)
 app.include_router(tenants.router)
 app.include_router(invoices.router)
 app.include_router(extract.router)

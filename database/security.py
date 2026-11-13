@@ -67,6 +67,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
             detail="Cuenta de usuario inactiva"
         )
 
+    db.info["audit_actor_id"] = user.id
     return user
 
 

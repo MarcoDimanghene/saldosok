@@ -11,7 +11,7 @@ from back import models
 from back.crud.tenants import create_tenant_with_admin
 from back.crud.users import create_user
 from back.routes.tenants import router as tenants_router, update_current_tenant
-from back.routes.user import create_user_for_tenant
+from back.routes.user import create_user_for_tenant, resend_user_invitation
 from back.schemas.tenants import TenantRegister, TenantUpdate
 from back.schemas.user import UserCreate, UserUpdate
 from database.database import Base, get_db
@@ -91,7 +91,6 @@ class TenantAdminTests(unittest.TestCase):
                 nombre="Usuario",
                 username="usuarioequipo",
                 email="user@example.com",
-                password="secure-password",
             ),
             hashed_password="hashed-password",
         )
@@ -148,8 +147,8 @@ class TenantAdminTests(unittest.TestCase):
         self.assertEqual(issuer.cuit, "20111111111")
         self.assertEqual(issuer.razon_social, "Emisor independiente")
 
-    @patch("back.routes.user.issue_email_verification")
-    def test_admin_can_create_individual_member_accounts_with_unique_email(self, verify_email):
+    @patch("back.routes.user.issue_user_invitation")
+    def test_admin_can_create_members_without_setting_their_password(self, send_invitation):
         tenant = models.Tenant()
         self.session.add(tenant)
         self.session.flush()
@@ -169,7 +168,6 @@ class TenantAdminTests(unittest.TestCase):
                 nombre="Integrante",
                 username="integrante",
                 email="integrante@example.com",
-                password="password",
             ),
             self.session,
             admin,
@@ -179,8 +177,79 @@ class TenantAdminTests(unittest.TestCase):
             username="integrante"
         ).one()
         self.assertEqual(result["user"], created)
-        self.assertIn("confirmar su correo", result["message"])
-        verify_email.assert_called_once_with(self.session, created)
+        self.assertFalse(created.is_email_verified)
+        self.assertTrue(created.hashed_password)
+        self.assertNotIn("password", UserCreate.model_fields)
+        self.assertIn("enlace para establecer la contraseña", result["message"])
+        send_invitation.assert_called_once_with(self.session, created)
+
+    def test_inactive_accounts_cannot_be_invited_or_sent_an_invitation(self):
+        tenant = models.Tenant()
+        self.session.add(tenant)
+        self.session.flush()
+        admin = models.User(
+            username="titular-invitacion",
+            email="titular-invitacion@example.com",
+            hashed_password="hash",
+            tenant_id=tenant.id,
+            is_tenant_admin=True,
+        )
+        self.session.add(admin)
+        self.session.commit()
+
+        with self.assertRaises(HTTPException) as create_error:
+            create_user_for_tenant(
+                UserCreate(
+                    nombre="Inactivo",
+                    username="inactivo",
+                    email="inactivo@example.com",
+                    is_active=False,
+                ),
+                self.session,
+                admin,
+            )
+        self.assertEqual(create_error.exception.status_code, 422)
+
+        inactive_user = models.User(
+            username="miembro-inactivo",
+            email="inactivo@example.com",
+            hashed_password="hash",
+            tenant_id=tenant.id,
+            is_active=False,
+            is_email_verified=False,
+        )
+        self.session.add(inactive_user)
+        self.session.commit()
+
+        with self.assertRaises(HTTPException) as resend_error:
+            resend_user_invitation(inactive_user.id, self.session, admin)
+
+        self.assertEqual(resend_error.exception.status_code, 409)
+
+    def test_unverified_accounts_without_email_cannot_be_invited(self):
+        tenant = models.Tenant()
+        self.session.add(tenant)
+        self.session.flush()
+        admin = models.User(
+            username="titular-sin-correo",
+            email="titular-sin-correo@example.com",
+            hashed_password="hash",
+            tenant_id=tenant.id,
+            is_tenant_admin=True,
+        )
+        member = models.User(
+            username="miembro-sin-correo",
+            hashed_password="hash",
+            tenant_id=tenant.id,
+            is_email_verified=False,
+        )
+        self.session.add_all([admin, member])
+        self.session.commit()
+
+        with self.assertRaises(HTTPException) as error:
+            resend_user_invitation(member.id, self.session, admin)
+
+        self.assertEqual(error.exception.status_code, 409)
 
     def test_tenant_maximum_is_ten_users_including_the_owner(self):
         tenant = models.Tenant()
@@ -211,7 +280,6 @@ class TenantAdminTests(unittest.TestCase):
                     nombre="Integrante",
                     username="integrante-limite",
                     email="integrante-limite@example.com",
-                    password="password",
                 ),
                 self.session,
                 admin,

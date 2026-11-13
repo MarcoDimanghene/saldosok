@@ -25,6 +25,7 @@ export const USERS_ROUTES = {
   create: '/users/',
   me: '/users/me',
   byId: (userId) => `/users/${userId}`,
+  invitation: (userId) => `/users/${userId}/invitation`,
   update: (userId) => `/users/${userId}`,
   delete: (userId) => `/users/${userId}`,
 };
@@ -65,6 +66,10 @@ export const IMPORTS_ROUTES = {
   finance: '/imports/finance',
 };
 
+export const AUDIT_ROUTES = {
+  list: '/audit/',
+};
+
 export const ROUTE_MAP = {
   root: '/',
   login: '/login',
@@ -74,6 +79,7 @@ export const ROUTE_MAP = {
   invoices: '/invoices',
   imports: '/imports',
   reports: '/reports',
+  audit: '/audit',
 };
 
 export default {
@@ -85,5 +91,6 @@ export default {
   INVOICES_ROUTES,
   PAYMENTS_ROUTES,
   IMPORTS_ROUTES,
+  AUDIT_ROUTES,
   ROUTE_MAP,
 };

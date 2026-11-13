@@ -40,7 +40,7 @@ const InvoiceMovementDialog = ({ direction, invoice, onClose, onCreated }) => {
     isCollection ? invoice.monto_cobrado : invoice.monto_pagado,
   ) || 0;
   const outstandingAmount = Math.max(
-    Number(invoice.monto_total || 0) - paidAmount,
+    Number(invoice.monto_ajustado ?? invoice.monto_total ?? 0) - paidAmount,
     0,
   );
   const invoiceLabel = invoice.numero_interno
