@@ -183,7 +183,12 @@ const InvoiceNotes = ({
           <FormField>
             <label>Comprobante de origen</label>
             <span>
-              {formatInvoiceNumber(originInvoice)} · {currency.format(Number(originInvoice.monto_total) || 0)}
+              {formatInvoiceNumber(originInvoice)} · Saldo actual:{' '}
+              {currency.format(Number(
+                originInvoice.saldo_pendiente
+                ?? originInvoice.monto_ajustado
+                ?? originInvoice.monto_total,
+              ) || 0)}
             </span>
           </FormField>
         ) : (
@@ -208,7 +213,12 @@ const InvoiceNotes = ({
 
                 return (
                   <option key={invoice.id} value={invoice.id}>
-                    {number} · {companyName} · {currency.format(Number(invoice.monto_total) || 0)}
+                    {number} · {companyName} · Saldo:{' '}
+                    {currency.format(Number(
+                      invoice.saldo_pendiente
+                      ?? invoice.monto_ajustado
+                      ?? invoice.monto_total,
+                    ) || 0)}
                   </option>
                 );
               })}

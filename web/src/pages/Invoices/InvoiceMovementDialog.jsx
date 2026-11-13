@@ -40,7 +40,10 @@ const InvoiceMovementDialog = ({ direction, invoice, onClose, onCreated }) => {
     isCollection ? invoice.monto_cobrado : invoice.monto_pagado,
   ) || 0;
   const outstandingAmount = Math.max(
-    Number(invoice.monto_ajustado ?? invoice.monto_total ?? 0) - paidAmount,
+    Number(
+      invoice.saldo_pendiente
+      ?? Number(invoice.monto_ajustado ?? invoice.monto_total ?? 0) - paidAmount,
+    ),
     0,
   );
   const invoiceLabel = invoice.numero_interno
@@ -62,6 +65,12 @@ const InvoiceMovementDialog = ({ direction, invoice, onClose, onCreated }) => {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError(null);
+    if (Number(form.amount) > outstandingAmount) {
+      setError(
+        `El importe supera el saldo pendiente (${currency.format(outstandingAmount)}).`,
+      );
+      return;
+    }
     setIsSaving(true);
     const commonData = {
       invoice_id: invoice.id,
@@ -127,6 +136,7 @@ const InvoiceMovementDialog = ({ direction, invoice, onClose, onCreated }) => {
                 id={`${fieldPrefix}-amount`}
                 type="number"
                 min="0.01"
+                max={outstandingAmount.toFixed(2)}
                 step="0.01"
                 value={form.amount}
                 onChange={(event) => setForm({ ...form, amount: event.target.value })}

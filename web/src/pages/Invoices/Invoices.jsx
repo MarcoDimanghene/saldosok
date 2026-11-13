@@ -50,6 +50,7 @@ import {
   Tabs,
 } from './Invoices.styles';
 import { filterInvoices } from './invoiceFilters';
+import { applyInvoiceBalances } from './invoiceBalances';
 import {
   addDaysToDate,
   companyTermDays,
@@ -159,6 +160,14 @@ const Invoices = () => {
     () => new Map(companies.map((company) => [company.id, company.razon_social])),
     [companies],
   );
+  const adjustedSalesInvoices = useMemo(
+    () => applyInvoiceBalances(salesInvoices, 'sales'),
+    [salesInvoices],
+  );
+  const adjustedPurchaseInvoices = useMemo(
+    () => applyInvoiceBalances(purchaseInvoices, 'purchases'),
+    [purchaseInvoices],
+  );
   const filterCompanies = useMemo(() => {
     const availableCompanies = tab === 'purchases'
       ? [...suppliers, ...issuers]
@@ -167,14 +176,16 @@ const Invoices = () => {
   }, [clients, issuers, suppliers, tab]);
   const visibleInvoices = useMemo(
     () => filterInvoices(
-      tab === 'purchases' ? purchaseInvoices : salesInvoices,
+      tab === 'purchases' ? adjustedPurchaseInvoices : adjustedSalesInvoices,
       invoiceFilters,
       tab === 'purchases' ? 'purchases' : 'sales',
     ),
-    [invoiceFilters, purchaseInvoices, salesInvoices, tab],
+    [adjustedPurchaseInvoices, adjustedSalesInvoices, invoiceFilters, tab],
   );
   const selectedInvoiceRecord = selectedInvoice
-    ? (selectedInvoice.direction === 'sales' ? salesInvoices : purchaseInvoices)
+    ? (selectedInvoice.direction === 'sales'
+      ? adjustedSalesInvoices
+      : adjustedPurchaseInvoices)
       .find((invoice) => invoice.id === selectedInvoice.id) || selectedInvoice.invoice
     : null;
 
@@ -462,8 +473,8 @@ const Invoices = () => {
           </SectionHeading>
           <InvoiceNotes
             companies={companies}
-            salesInvoices={salesInvoices}
-            purchaseInvoices={purchaseInvoices}
+            salesInvoices={adjustedSalesInvoices}
+            purchaseInvoices={adjustedPurchaseInvoices}
             isLoading={isLoading}
             onCreated={(direction) => (
               direction === 'sales' ? refreshSales() : refreshPurchases()
@@ -1152,8 +1163,8 @@ const Invoices = () => {
           direction={selectedInvoice.direction}
           companies={companies}
           companyNames={companyNames}
-          salesInvoices={salesInvoices}
-          purchaseInvoices={purchaseInvoices}
+          salesInvoices={adjustedSalesInvoices}
+          purchaseInvoices={adjustedPurchaseInvoices}
           onClose={closeInvoiceDetails}
           onUpdated={refreshInvoiceData}
         />
