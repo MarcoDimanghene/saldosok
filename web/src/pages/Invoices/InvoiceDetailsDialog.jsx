@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '../../component/ui/UIComponents';
 import { INVOICE_TYPE_LABELS } from '../../config/appConfig';
-import { updatePurchaseInvoice } from '../../services/invoiceService';
+import {
+  updatePurchaseInvoice,
+  updateSalesInvoice,
+} from '../../services/invoiceService';
 import { formatInvoiceDate } from './invoiceDates';
 import InvoiceMovementEditor from './InvoiceMovementEditor';
 import InvoiceNotes from './InvoiceNotes';
@@ -9,6 +12,7 @@ import {
   EmptyState,
   Form,
   FormField,
+  FormGrid,
   FormInput,
   InvoiceDetailGrid,
   InvoiceDetailItem,
@@ -39,6 +43,10 @@ const InvoiceDetailsDialog = ({
 }) => {
   const dialogRef = useRef(null);
   const [showNoteForm, setShowNoteForm] = useState(false);
+  const [editingInvoice, setEditingInvoice] = useState(false);
+  const [invoiceEdit, setInvoiceEdit] = useState(null);
+  const [invoiceEditMessage, setInvoiceEditMessage] = useState(null);
+  const [invoiceEditSaving, setInvoiceEditSaving] = useState(false);
   const [editingRecipient, setEditingRecipient] = useState(false);
   const [recipientId, setRecipientId] = useState(String(invoice.receptor_id || ''));
   const [recipientError, setRecipientError] = useState(null);
@@ -60,6 +68,51 @@ const InvoiceDetailsDialog = ({
   const recipient = isSales
     ? companyNames.get(invoice.cliente_id) || 'Cliente no encontrado'
     : companyNames.get(invoice.receptor_id) || 'Sin empresa destinataria registrada';
+
+  const startEditingInvoice = () => {
+    setInvoiceEdit({
+      issueDate: invoice.fecha_emision || '',
+      dueDate: isSales
+        ? invoice.fecha_pago_approx || ''
+        : invoice.fecha_vencimiento || '',
+      totalAmount: invoice.monto_total ?? '',
+    });
+    setInvoiceEditMessage(null);
+    setEditingInvoice(true);
+  };
+
+  const handleInvoiceUpdate = async (event) => {
+    event.preventDefault();
+    setInvoiceEditMessage(null);
+    setInvoiceEditSaving(true);
+    try {
+      const updateData = {
+        issue_date: invoiceEdit.issueDate || null,
+        total_amount: invoiceEdit.totalAmount,
+        ...(isSales
+          ? { estimated_payment_date: invoiceEdit.dueDate || null }
+          : { due_date: invoiceEdit.dueDate || null }),
+      };
+      if (isSales) {
+        await updateSalesInvoice(invoice.id, updateData);
+      } else {
+        await updatePurchaseInvoice(invoice.id, updateData);
+      }
+      await onUpdated(direction);
+      setEditingInvoice(false);
+      setInvoiceEditMessage({
+        error: false,
+        text: 'Los datos del comprobante se actualizaron correctamente.',
+      });
+    } catch (error) {
+      setInvoiceEditMessage({
+        error: true,
+        text: error.message || 'No se pudo actualizar el comprobante.',
+      });
+    } finally {
+      setInvoiceEditSaving(false);
+    }
+  };
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -188,6 +241,81 @@ const InvoiceDetailsDialog = ({
             </InvoiceDetailItem>
           )}
         </InvoiceDetailGrid>
+
+        <section>
+          <SectionHeading>
+            <h3>Datos del comprobante</h3>
+            <Button
+              type="button"
+              $variant="secondary"
+              onClick={() => (
+                editingInvoice
+                  ? setEditingInvoice(false)
+                  : startEditingInvoice()
+              )}
+            >
+              {editingInvoice ? 'Cancelar edición' : 'Editar fecha o importe'}
+            </Button>
+          </SectionHeading>
+          {invoiceEditMessage && (
+            <StatusMessage
+              $error={invoiceEditMessage.error}
+              role={invoiceEditMessage.error ? 'alert' : 'status'}
+            >
+              {invoiceEditMessage.text}
+            </StatusMessage>
+          )}
+          {editingInvoice && invoiceEdit && (
+            <Form onSubmit={handleInvoiceUpdate}>
+              <FormGrid>
+                <FormField>
+                  <label htmlFor="invoice-edit-issue-date">Fecha de emisión</label>
+                  <FormInput
+                    id="invoice-edit-issue-date"
+                    type="date"
+                    value={invoiceEdit.issueDate}
+                    onChange={(event) => setInvoiceEdit({
+                      ...invoiceEdit,
+                      issueDate: event.target.value,
+                    })}
+                  />
+                </FormField>
+                <FormField>
+                  <label htmlFor="invoice-edit-due-date">
+                    {isSales ? 'Fecha estimada de cobro' : 'Fecha de vencimiento o pago'}
+                  </label>
+                  <FormInput
+                    id="invoice-edit-due-date"
+                    type="date"
+                    value={invoiceEdit.dueDate}
+                    onChange={(event) => setInvoiceEdit({
+                      ...invoiceEdit,
+                      dueDate: event.target.value,
+                    })}
+                  />
+                </FormField>
+                <FormField>
+                  <label htmlFor="invoice-edit-total-amount">Importe</label>
+                  <FormInput
+                    id="invoice-edit-total-amount"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={invoiceEdit.totalAmount}
+                    onChange={(event) => setInvoiceEdit({
+                      ...invoiceEdit,
+                      totalAmount: event.target.value,
+                    })}
+                    required
+                  />
+                </FormField>
+              </FormGrid>
+              <Button type="submit" disabled={invoiceEditSaving}>
+                {invoiceEditSaving ? 'Guardando…' : 'Guardar cambios'}
+              </Button>
+            </Form>
+          )}
+        </section>
 
         {!isSales && !invoice.receptor_id && (
           <section>

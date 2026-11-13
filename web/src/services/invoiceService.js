@@ -3,6 +3,8 @@ import { INVOICES_ROUTES } from '../routes/routes';
 
 export const getSalesInvoices = () => apiClient.get(INVOICES_ROUTES.salesList);
 export const createSalesInvoice = (invoice) => apiClient.post(INVOICES_ROUTES.salesCreate, invoice);
+export const updateSalesInvoice = (invoiceId, invoice) =>
+  apiClient.patch(INVOICES_ROUTES.salesUpdate(invoiceId), invoice);
 export const getPurchaseInvoices = () => apiClient.get(INVOICES_ROUTES.purchaseList);
 export const createPurchaseInvoice = (invoice) => apiClient.post(INVOICES_ROUTES.purchaseCreate, invoice);
 export const createPendingPurchase = (purchase) =>

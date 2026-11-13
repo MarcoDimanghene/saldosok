@@ -275,6 +275,90 @@ class InvoiceTenantIsolationTests(unittest.TestCase):
             Decimal("100.00"),
         )
 
+    def test_editing_sales_credit_note_updates_origin_balance_and_dates(self):
+        origin = create_sales_invoice(
+            self.session,
+            self.tenant.id,
+            self.sales_invoice_data(self.local_company.id),
+        )
+        credit_note = create_sales_invoice(
+            self.session,
+            self.tenant.id,
+            self.sales_invoice_data(self.local_company.id).model_copy(
+                update={
+                    "invoice_number": 2,
+                    "tipo_comprobante": "nota_credito",
+                    "factura_origen_id": origin.id,
+                    "total_amount": Decimal("20.00"),
+                }
+            ),
+        )
+        corrected_date = date(2026, 12, 15)
+
+        updated = update_sales_invoice(
+            self.session,
+            self.tenant.id,
+            credit_note.id,
+            SalesInvoiceUpdate(
+                total_amount=Decimal("35.00"),
+                estimated_payment_date=corrected_date,
+            ),
+        )
+
+        listed_origin = next(
+            invoice for invoice in get_listsales_invoices(self.session, self.tenant.id)
+            if invoice.id == origin.id
+        )
+        self.assertEqual(updated.monto_total, Decimal("35.00"))
+        self.assertEqual(updated.fecha_pago_approx, corrected_date)
+        self.assertEqual(listed_origin.monto_ajustado, Decimal("65.00"))
+        self.assertEqual(
+            get_dashboard_summary(self.session, self.tenant.id)["total_sales"],
+            Decimal("65.00"),
+        )
+
+    def test_editing_purchase_debit_note_updates_origin_balance_and_due_date(self):
+        origin = create_purchase_invoice(
+            self.session,
+            self.tenant.id,
+            self.purchase_invoice_data(self.local_company.id),
+        )
+        debit_note = create_purchase_invoice(
+            self.session,
+            self.tenant.id,
+            self.purchase_invoice_data(self.local_company.id).model_copy(
+                update={
+                    "invoice_number": 2,
+                    "tipo_comprobante": "nota_debito",
+                    "factura_origen_id": origin.id,
+                    "total_amount": Decimal("10.00"),
+                }
+            ),
+        )
+        corrected_date = date(2026, 12, 20)
+
+        updated = update_purchase_invoice(
+            self.session,
+            self.tenant.id,
+            debit_note.id,
+            PurchaseInvoiceUpdate(
+                total_amount=Decimal("25.00"),
+                due_date=corrected_date,
+            ),
+        )
+
+        listed_origin = next(
+            invoice for invoice in get_listpurchase_invoice(self.session, self.tenant.id)
+            if invoice.id == origin.id
+        )
+        self.assertEqual(updated.monto_total, Decimal("25.00"))
+        self.assertEqual(updated.fecha_vencimiento, corrected_date)
+        self.assertEqual(listed_origin.monto_ajustado, Decimal("125.00"))
+        self.assertEqual(
+            get_dashboard_summary(self.session, self.tenant.id)["total_purchases"],
+            Decimal("125.00"),
+        )
+
     def test_purchase_debit_note_increases_the_payable_balance(self):
         origin = create_purchase_invoice(
             self.session,
