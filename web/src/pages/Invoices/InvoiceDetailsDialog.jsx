@@ -64,7 +64,13 @@ const InvoiceDetailsDialog = ({
   );
   const paidAmount = Number(isSales ? invoice.monto_cobrado : invoice.monto_pagado) || 0;
   const adjustedTotal = Number(invoice.monto_ajustado ?? invoice.monto_total) || 0;
-  const outstandingAmount = Math.max((isNote ? 0 : adjustedTotal) - paidAmount, 0);
+  const outstandingAmount = isNote
+    ? 0
+    : Number(
+      invoice.saldo_pendiente
+      ?? Math.max(adjustedTotal - paidAmount, 0),
+    );
+  const noteAdjustment = adjustedTotal - Number(invoice.monto_total || 0);
   const recipient = isSales
     ? companyNames.get(invoice.cliente_id) || 'Cliente no encontrado'
     : companyNames.get(invoice.receptor_id) || 'Sin empresa destinataria registrada';
@@ -190,10 +196,19 @@ const InvoiceDetailsDialog = ({
             <strong>{currency.format(Number(invoice.monto_total) || 0)}</strong>
           </InvoiceDetailItem>
           {!isNote && adjustedTotal !== Number(invoice.monto_total || 0) && (
-            <InvoiceDetailItem>
-              <span>Importe con notas aplicadas</span>
-              <strong>{currency.format(adjustedTotal)}</strong>
-            </InvoiceDetailItem>
+            <>
+              <InvoiceDetailItem>
+                <span>Impacto neto de notas</span>
+                <strong>
+                  {noteAdjustment < 0 ? '-' : '+'}
+                  {currency.format(Math.abs(noteAdjustment))}
+                </strong>
+              </InvoiceDetailItem>
+              <InvoiceDetailItem>
+                <span>Total tras aplicar notas</span>
+                <strong>{currency.format(adjustedTotal)}</strong>
+              </InvoiceDetailItem>
+            </>
           )}
           <InvoiceDetailItem>
             <span>{isSales ? 'Cobrado' : 'Pagado'}</span>

@@ -64,9 +64,23 @@ def attach_adjusted_invoice_totals(
     invoice_model = type(invoices[0])
     totals = get_adjusted_invoice_totals(db, tenant_id, invoice_model)
     for invoice in invoices:
-        invoice.monto_ajustado = (
-            totals.get(invoice.id, Decimal(invoice.monto_total or 0))
-            if (invoice.tipo_comprobante or "factura") == "factura"
-            else None
+        if (invoice.tipo_comprobante or "factura") != "factura":
+            invoice.monto_ajustado = None
+            invoice.saldo_pendiente = None
+            continue
+
+        adjusted_total = totals.get(
+            invoice.id,
+            Decimal(invoice.monto_total or 0),
+        )
+        paid_total = (
+            invoice.monto_cobrado
+            if hasattr(invoice, "monto_cobrado")
+            else invoice.monto_pagado
+        ) or Decimal("0.00")
+        invoice.monto_ajustado = adjusted_total
+        invoice.saldo_pendiente = max(
+            adjusted_total - Decimal(paid_total),
+            Decimal("0.00"),
         )
     return invoices

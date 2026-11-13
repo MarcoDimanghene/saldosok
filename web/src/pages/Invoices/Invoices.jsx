@@ -942,13 +942,16 @@ const Invoices = () => {
                       ) : (
                         <>
                           {Number(invoice.monto_ajustado) !== Number(invoice.monto_total) && (
-                            <span>Total con notas: {formatCurrency(invoice.monto_ajustado)}</span>
+                            <>
+                              <span>Importe original: {formatCurrency(invoice.monto_total)}</span>
+                              <span>Total tras notas: {formatCurrency(invoice.monto_ajustado)}</span>
+                            </>
                           )}
                           <span>
-                            Resta cobrar: {formatCurrency(remainingBalance(
-                              invoice.monto_ajustado ?? invoice.monto_total,
-                              invoice.monto_cobrado,
-                            ))}
+                            Saldo pendiente: {formatCurrency(
+                              invoice.saldo_pendiente
+                              ?? remainingBalance(invoice.monto_ajustado ?? invoice.monto_total, invoice.monto_cobrado),
+                            )}
                           </span>
                         </>
                       )}
@@ -1063,13 +1066,16 @@ const Invoices = () => {
                       ) : (
                         <>
                           {Number(invoice.monto_ajustado) !== Number(invoice.monto_total) && (
-                            <span>Total con notas: {formatCurrency(invoice.monto_ajustado)}</span>
+                            <>
+                              <span>Importe original: {formatCurrency(invoice.monto_total)}</span>
+                              <span>Total tras notas: {formatCurrency(invoice.monto_ajustado)}</span>
+                            </>
                           )}
                           <span>
-                            Resta pagar: {formatCurrency(remainingBalance(
-                              invoice.monto_ajustado ?? invoice.monto_total,
-                              invoice.monto_pagado,
-                            ))}
+                            Saldo pendiente: {formatCurrency(
+                              invoice.saldo_pendiente
+                              ?? remainingBalance(invoice.monto_ajustado ?? invoice.monto_total, invoice.monto_pagado),
+                            )}
                           </span>
                         </>
                       )}

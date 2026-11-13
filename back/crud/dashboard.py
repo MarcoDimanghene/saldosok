@@ -91,6 +91,54 @@ def _obtener_saldos_por_fecha(
     ]
 
 
+def _saldo_total_pendiente(
+    db: Session,
+    tenant_id: int,
+    invoice_model,
+    payment_model,
+    payment_invoice_column,
+) -> Decimal:
+    payments_by_invoice = (
+        db.query(
+            payment_invoice_column.label("invoice_id"),
+            func.sum(payment_model.monto).label("total_pagado"),
+        )
+        .filter(payment_model.tenant_id == tenant_id)
+        .group_by(payment_invoice_column)
+        .subquery()
+    )
+    rows = (
+        db.query(
+            invoice_model.id,
+            func.coalesce(payments_by_invoice.c.total_pagado, 0),
+        )
+        .outerjoin(
+            payments_by_invoice,
+            payments_by_invoice.c.invoice_id == invoice_model.id,
+        )
+        .filter(
+            invoice_model.tenant_id == tenant_id,
+            or_(
+                invoice_model.tipo_comprobante == "factura",
+                invoice_model.tipo_comprobante.is_(None),
+            ),
+        )
+        .all()
+    )
+    adjusted_totals = get_adjusted_invoice_totals(db, tenant_id, invoice_model)
+    return sum(
+        (
+            max(
+                adjusted_totals.get(invoice_id, Decimal("0.00"))
+                - Decimal(paid or 0),
+                Decimal("0.00"),
+            )
+            for invoice_id, paid in rows
+        ),
+        Decimal("0.00"),
+    )
+
+
 def get_dashboard_summary(db: Session, tenant_id: int) -> dict:
     hoy = date.today()
 
@@ -121,8 +169,20 @@ def get_dashboard_summary(db: Session, tenant_id: int) -> dict:
     # ==================================================
     # 3. SALDOS PENDIENTES + PORCENTAJES
     # ==================================================
-    accounts_receivable = Decimal(total_sales) - Decimal(total_collected)
-    accounts_payable = Decimal(total_purchases) - Decimal(total_paid)
+    accounts_receivable = _saldo_total_pendiente(
+        db,
+        tenant_id,
+        models.SalesInvoice,
+        models.SalesCollection,
+        models.SalesCollection.factura_venta_id,
+    )
+    accounts_payable = _saldo_total_pendiente(
+        db,
+        tenant_id,
+        models.PurchaseInvoice,
+        models.PurchasePayment,
+        models.PurchasePayment.factura_compra_id,
+    )
 
     # % de cobro: cobrado / ventas. Si no hay ventas, no tiene
     # sentido el porcentaje -> None (el frontend muestra "—").
