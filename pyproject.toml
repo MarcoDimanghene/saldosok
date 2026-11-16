@@ -15,9 +15,11 @@ dependencies = [
     "PyMuPDF==1.28.0",
     "Pillow==12.3.0",
     "numpy==2.5.1",
-    "pandas==3.0.2",
     "rapidocr-onnxruntime==1.4.4",
 ]
+
+[project.optional-dependencies]
+excel-report = ["pandas==3.0.2"]
 
 [tool.vercel]
 entrypoint = "back.main:app"

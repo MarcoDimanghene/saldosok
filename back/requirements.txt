@@ -10,5 +10,4 @@ psycopg2-binary==2.9.12
 PyMuPDF==1.28.0
 Pillow==12.3.0
 numpy==2.5.1
-pandas==3.0.2
 rapidocr-onnxruntime==1.4.4

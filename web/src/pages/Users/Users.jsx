@@ -257,7 +257,7 @@ const Users = () => {
                       {account.nombre || account.username}
                       {account.is_tenant_admin
                         ? ' · Administrador'
-                        : ` · ${profileLabels[account.perfil] || 'Sin perfil'}`}
+                        : ` · ${profileLabels[account.perfil] || profileLabels.venta}`}
                       {account.id === currentUser?.id ? ' (vos)' : ''}
                     </strong>
                     <span>Usuario: {account.username}</span>
