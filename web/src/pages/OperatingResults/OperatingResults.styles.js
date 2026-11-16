@@ -44,6 +44,31 @@ export const Form = styled.form`
   }
 `;
 
+export const FilterBar = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+
+  @media (max-width: 760px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+export const FilterField = styled.label`
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.35rem;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.82rem;
+  font-weight: 600;
+`;
+
 export const FormField = styled.label`
   display: flex;
   flex-direction: column;
@@ -110,6 +135,28 @@ export const TableWrap = styled.div`
   td.numeric {
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
+  }
+`;
+
+export const ResultsHeading = styled.div`
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+
+  h2 {
+    margin: 0;
+  }
+
+  span {
+    color: rgba(255, 255, 255, 0.62);
+    font-size: 0.85rem;
+  }
+
+  @media (max-width: 480px) {
+    align-items: flex-start;
+    flex-direction: column;
   }
 `;
 

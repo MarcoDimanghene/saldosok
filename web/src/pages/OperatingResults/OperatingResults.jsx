@@ -9,14 +9,21 @@ import {
 import {
   Form,
   FormField,
+  FilterBar,
+  FilterField,
   FormInput,
   Message,
   PageContainer,
   PageHeader,
   Panel,
   Preview,
+  ResultsHeading,
   TableWrap,
 } from './OperatingResults.styles';
+import {
+  filterOperatingResults,
+  initialOperatingResultFilters,
+} from './operatingResultsFilters';
 
 const invoiceLabel = (invoice) => (
   invoice.letra && invoice.punto_venta != null && invoice.nro_factura != null
@@ -47,6 +54,11 @@ const OperatingResults = () => {
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [filters, setFilters] = useState(initialOperatingResultFilters);
+  const visibleResults = useMemo(
+    () => filterOperatingResults(results, filters),
+    [results, filters],
+  );
 
   const loadResults = useCallback(async () => {
     setStatus('loading');
@@ -177,6 +189,56 @@ const OperatingResults = () => {
       {status === 'loading' && <Message role="status">Cargando facturas…</Message>}
       {status === 'ready' && (
         <Panel>
+          <ResultsHeading>
+            <h2>Facturas de compra</h2>
+            <span>{visibleResults.length} de {results.length} facturas</span>
+          </ResultsHeading>
+          <FilterBar aria-label="Filtros de resultados operativos">
+            <FilterField>
+              Desde
+              <FormInput
+                type="date"
+                value={filters.dateFrom}
+                onChange={(event) => setFilters({ ...filters, dateFrom: event.target.value })}
+              />
+            </FilterField>
+            <FilterField>
+              Hasta
+              <FormInput
+                type="date"
+                value={filters.dateTo}
+                onChange={(event) => setFilters({ ...filters, dateTo: event.target.value })}
+              />
+            </FilterField>
+            <FilterField>
+              Compañía
+              <FormInput
+                type="search"
+                value={filters.company}
+                placeholder="Buscar proveedor"
+                onChange={(event) => setFilters({ ...filters, company: event.target.value })}
+              />
+            </FilterField>
+            <FilterField>
+              Número de factura
+              <FormInput
+                type="search"
+                value={filters.invoice}
+                placeholder="Buscar número"
+                onChange={(event) => setFilters({ ...filters, invoice: event.target.value })}
+              />
+            </FilterField>
+            <Button
+              type="button"
+              $variant="secondary"
+              onClick={() => setFilters(initialOperatingResultFilters)}
+              disabled={Object.entries(initialOperatingResultFilters).every(
+                ([key, value]) => filters[key] === value,
+              )}
+            >
+              Limpiar
+            </Button>
+          </FilterBar>
           <TableWrap>
             <StyledTable>
               <thead>
@@ -192,7 +254,7 @@ const OperatingResults = () => {
                 </tr>
               </thead>
               <tbody>
-                {results.map((invoice) => (
+                {visibleResults.map((invoice) => (
                   <TableRow key={invoice.factura_compra_id}>
                     <TableCell>{invoiceLabel(invoice)}</TableCell>
                     <TableCell>{invoice.proveedor}</TableCell>
@@ -218,9 +280,11 @@ const OperatingResults = () => {
                         type="button"
                         $variant={invoice.id ? 'secondary' : 'primary'}
                         onClick={() => openEditor(invoice)}
+                        title={invoice.id ? 'Editar Resultado Operativo' : 'Cargar Resultado Operativo'}
+                        aria-label={`${invoice.id ? 'Editar' : 'Cargar'} RO de factura ${invoiceLabel(invoice)}`}
                       >
                         {invoice.id ? <TbChartLine aria-hidden="true" /> : <TbPlus aria-hidden="true" />}
-                        {invoice.id ? 'Editar RO' : 'Agregar RO'}
+                        RO
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -230,6 +294,9 @@ const OperatingResults = () => {
           </TableWrap>
           {!results.length && (
             <Message>No hay facturas formales de compra para mostrar.</Message>
+          )}
+          {results.length > 0 && !visibleResults.length && (
+            <Message>No hay facturas que coincidan con los filtros.</Message>
           )}
         </Panel>
       )}
