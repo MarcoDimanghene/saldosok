@@ -5,7 +5,7 @@ from back import models
 from back.schemas.finance_import import FinanceImportRequest
 from back.services.finance_import import import_finance_rows
 from database.database import get_db
-from database.security import get_current_user
+from database.security import get_current_tenant_admin
 
 
 router = APIRouter(prefix="/imports", tags=["Imports"])
@@ -15,6 +15,6 @@ router = APIRouter(prefix="/imports", tags=["Imports"])
 def import_finance(
     payload: FinanceImportRequest,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
+    current_user: models.User = Depends(get_current_tenant_admin),
 ):
     return import_finance_rows(db, current_user.tenant_id, payload)

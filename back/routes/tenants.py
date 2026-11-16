@@ -187,6 +187,11 @@ def get_current_tenant_info(
     tenant = crud.get_tenant(db=db, tenant_id=current_user.tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant no encontrado.")
+    if not current_user.is_tenant_admin:
+        return schemas.TenantResponse(
+            id=tenant.id,
+            razon_social=tenant.razon_social,
+        )
     return tenant
 
 

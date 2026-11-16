@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from back import models
 from back.crud import companies
 from database.database import get_db
-from database.security import get_current_user
+from database.security import get_current_tenant_admin
 from engine.extract import (
     DocumentLimitError,
     MAX_PDF_PAGES,
@@ -88,7 +88,7 @@ def _validate_image(path: str) -> None:
 def extract_invoice(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
+    current_user: models.User = Depends(get_current_tenant_admin),
 ):
     # ---------- 1. Validar extensión ----------
     extension = os.path.splitext(file.filename or "")[1].lower()

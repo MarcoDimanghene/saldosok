@@ -219,7 +219,11 @@ class CompanyContactDataTests(unittest.TestCase):
         )
         self.session.add(issuer)
         self.session.commit()
-        user = SimpleNamespace(tenant_id=self.tenant.id)
+        user = SimpleNamespace(
+            tenant_id=self.tenant.id,
+            perfil="venta",
+            is_tenant_admin=True,
+        )
 
         created = creteate_company(
             schemas.CompanyCreate(

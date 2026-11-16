@@ -145,6 +145,11 @@ def update_user_by_id(
     current_user: models.User = Depends(get_current_tenant_admin)
 ):
     """Actualiza un usuario específico dentro de la empresa."""
+    if "perfil" in user_update.model_fields_set and user_update.perfil is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Selecciona un perfil de acceso válido.",
+        )
     if "email" in user_update.model_fields_set and not user_update.email:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

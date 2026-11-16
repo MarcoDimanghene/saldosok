@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { TbBuilding, TbBuildingStore, TbDeviceFloppy, TbEdit, TbPlus, TbX } from 'react-icons/tb';
 import { Button } from '../../component/ui/UIComponents';
+import { useAuth } from '../../hook/useAuth';
 import { createCompany, updateCompany } from '../../services/companyService';
 import { CONDICIONES_IVA } from '../../config/appConfig';
 import { fetchCompanies } from '../../store';
@@ -36,12 +37,19 @@ const initialForm = {
 
 const Companies = () => {
   const dispatch = useDispatch();
+  const { user } = useAuth();
+  const isSalesUser = !user?.is_tenant_admin && user?.perfil === 'venta';
+  const isPurchaseUser = !user?.is_tenant_admin && user?.perfil === 'compra';
   const { items: companies, status, error } = useSelector((state) => state.companies);
   const [form, setForm] = useState(initialForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
   const [editingCompanyId, setEditingCompanyId] = useState(null);
-  const portfolioCompanies = companies;
+  const portfolioCompanies = isSalesUser
+    ? companies.filter((company) => company.es_cliente)
+    : isPurchaseUser
+      ? companies.filter((company) => company.es_proveedor)
+      : companies;
 
   const loadCompanies = useCallback(async () => {
     await dispatch(fetchCompanies({ force: true }));
@@ -56,12 +64,13 @@ const Companies = () => {
     setMessage(null);
 
     const taxId = form.tax_id.replace(/\D/g, '');
-    const taxIdRequired = !form.is_supplier || form.is_client || form.is_issuer;
+    const taxIdRequired = isSalesUser
+      || (!isPurchaseUser && (!form.is_supplier || form.is_client || form.is_issuer));
     if ((taxIdRequired && !taxId) || (taxId && taxId.length !== 11)) {
       setMessage({ error: true, text: 'El CUIT/CUIL debe tener 11 dígitos, excepto para proveedores sin identificación.' });
       return;
     }
-    if (!form.is_client && !form.is_supplier && !form.is_issuer) {
+    if (!isSalesUser && !isPurchaseUser && !form.is_client && !form.is_supplier && !form.is_issuer) {
       setMessage({ error: true, text: 'Selecciona al menos un rol para esta empresa.' });
       return;
     }
@@ -70,6 +79,11 @@ const Companies = () => {
     try {
       const companyData = {
         ...form,
+        is_client: isSalesUser || form.is_client,
+        is_supplier: isPurchaseUser || form.is_supplier,
+        is_issuer: isSalesUser || isPurchaseUser
+          ? (editingCompanyId ? form.is_issuer : false)
+          : form.is_issuer,
         legal_name: form.legal_name.trim(),
         tax_condition: form.tax_condition.trim() || null,
         address: form.address.trim() || null,
@@ -79,6 +93,22 @@ const Companies = () => {
         dias_pago: Number(form.dias_pago),
         tax_id: taxId || null,
       };
+      if (isSalesUser) {
+        delete companyData.dias_pago;
+        if (editingCompanyId) {
+          delete companyData.is_client;
+          delete companyData.is_supplier;
+          delete companyData.is_issuer;
+        }
+      }
+      if (isPurchaseUser) {
+        delete companyData.dias_cobro;
+        if (editingCompanyId) {
+          delete companyData.is_client;
+          delete companyData.is_supplier;
+          delete companyData.is_issuer;
+        }
+      }
       if (editingCompanyId) {
         await updateCompany(editingCompanyId, companyData);
       } else {
@@ -130,10 +160,13 @@ const Companies = () => {
   return (
     <>
       <PageHeader>
-        <h1>Empresas</h1>
+        <h1>{isSalesUser ? 'Clientes' : isPurchaseUser ? 'Proveedores' : 'Empresas'}</h1>
         <p>
-          Administra clientes, proveedores y emisoras, y define los plazos predeterminados
-          de cobro y pago para las facturas.
+          {isSalesUser
+            ? 'Carga y actualiza clientes para las facturas de venta.'
+            : isPurchaseUser
+              ? 'Carga y actualiza proveedores para las facturas de compra.'
+              : 'Administra clientes, proveedores y emisoras, y define los plazos predeterminados de cobro y pago para las facturas.'}
         </p>
       </PageHeader>
 
@@ -146,7 +179,11 @@ const Companies = () => {
 
       <CompanyGrid>
         <Panel as="section">
-          <h2>{editingCompanyId ? 'Editar empresa' : 'Agregar empresa'}</h2>
+          <h2>
+            {editingCompanyId
+              ? `Editar ${isSalesUser ? 'cliente' : isPurchaseUser ? 'proveedor' : 'empresa'}`
+              : `Agregar ${isSalesUser ? 'cliente' : isPurchaseUser ? 'proveedor' : 'empresa'}`}
+          </h2>
           <Form onSubmit={handleSubmit}>
             <FormField>
               <label htmlFor="company-legal-name">Razón social</label>
@@ -160,7 +197,7 @@ const Companies = () => {
             </FormField>
             <FormField>
               <label htmlFor="company-tax-id">
-                CUIT/CUIL{form.is_supplier && !form.is_client && !form.is_issuer ? ' (opcional)' : ''}
+                CUIT/CUIL{(isPurchaseUser || (form.is_supplier && !form.is_client && !form.is_issuer)) ? ' (opcional)' : ''}
               </label>
               <FormInput
                 id="company-tax-id"
@@ -172,7 +209,7 @@ const Companies = () => {
                   ...form,
                   tax_id: event.target.value.replace(/\D/g, '').slice(0, 11),
                 })}
-                required={!form.is_supplier || form.is_client || form.is_issuer}
+                required={isSalesUser || (!isPurchaseUser && (!form.is_supplier || form.is_client || form.is_issuer))}
               />
             </FormField>
             <FormField>
@@ -216,7 +253,7 @@ const Companies = () => {
                 onChange={(event) => setForm({ ...form, provincia: event.target.value })}
               />
             </FormField>
-            <FormField>
+            {!isPurchaseUser && <FormField>
               <label htmlFor="company-collection-days">Plazo para cobrar (días)</label>
               <FormInput
                 id="company-collection-days"
@@ -227,8 +264,8 @@ const Companies = () => {
                 onChange={(event) => setForm({ ...form, dias_cobro: event.target.value })}
                 required
               />
-            </FormField>
-            <FormField>
+            </FormField>}
+            {!isSalesUser && <FormField>
               <label htmlFor="company-payment-days">Plazo para pagar (días)</label>
               <FormInput
                 id="company-payment-days"
@@ -239,36 +276,43 @@ const Companies = () => {
                 onChange={(event) => setForm({ ...form, dias_pago: event.target.value })}
                 required
               />
-            </FormField>
-            <FormField>
-              <span>Roles</span>
-              <CompanyRoles>
-                <RoleChoice>
-                  <input
-                    type="checkbox"
-                    checked={form.is_client}
-                    onChange={(event) => setForm({ ...form, is_client: event.target.checked })}
-                  />
-                  Cliente
-                </RoleChoice>
-                <RoleChoice>
-                  <input
-                    type="checkbox"
-                    checked={form.is_supplier}
-                    onChange={(event) => setForm({ ...form, is_supplier: event.target.checked })}
-                  />
-                  Proveedor
-                </RoleChoice>
-                <RoleChoice>
-                  <input
-                    type="checkbox"
-                    checked={form.is_issuer}
-                    onChange={(event) => setForm({ ...form, is_issuer: event.target.checked })}
-                  />
-                  Emisor
-                </RoleChoice>
-              </CompanyRoles>
-            </FormField>
+            </FormField>}
+            {isSalesUser || isPurchaseUser ? (
+              <FormField>
+                <span>Rol de empresa</span>
+                <p>{isSalesUser ? 'Cliente' : 'Proveedor'}</p>
+              </FormField>
+            ) : (
+              <FormField>
+                <span>Roles</span>
+                <CompanyRoles>
+                  <RoleChoice>
+                    <input
+                      type="checkbox"
+                      checked={form.is_client}
+                      onChange={(event) => setForm({ ...form, is_client: event.target.checked })}
+                    />
+                    Cliente
+                  </RoleChoice>
+                  <RoleChoice>
+                    <input
+                      type="checkbox"
+                      checked={form.is_supplier}
+                      onChange={(event) => setForm({ ...form, is_supplier: event.target.checked })}
+                    />
+                    Proveedor
+                  </RoleChoice>
+                  <RoleChoice>
+                    <input
+                      type="checkbox"
+                      checked={form.is_issuer}
+                      onChange={(event) => setForm({ ...form, is_issuer: event.target.checked })}
+                    />
+                    Emisor
+                  </RoleChoice>
+                </CompanyRoles>
+              </FormField>
+            )}
             <Button type="submit" disabled={isSubmitting}>
               {editingCompanyId
                 ? <TbDeviceFloppy aria-hidden="true" />
@@ -284,7 +328,9 @@ const Companies = () => {
         </Panel>
 
         <Panel as="section">
-          <h2>Empresas y emisoras registradas</h2>
+          <h2>
+            {isSalesUser ? 'Clientes registrados' : isPurchaseUser ? 'Proveedores registrados' : 'Empresas y emisoras registradas'}
+          </h2>
           {status === 'idle' || status === 'loading' ? (
             <p role="status">Cargando empresas…</p>
           ) : portfolioCompanies.length ? (
@@ -306,8 +352,8 @@ const Companies = () => {
                           {company.cuit ? `CUIT/CUIL ${company.cuit}` : 'Sin CUIT/CUIL'}
                           {company.localidad && ` · ${company.localidad}`}
                           {company.provincia && `, ${company.provincia}`}
-                          {` · Cobra a ${company.dias_cobro ?? company.dias_credito ?? 0} días`}
-                          {` · Paga a ${company.dias_pago ?? company.dias_credito ?? 0} días`}
+                          {!isPurchaseUser && ` · Cobra a ${company.dias_cobro ?? company.dias_credito ?? 0} días`}
+                          {!isSalesUser && ` · Paga a ${company.dias_pago ?? company.dias_credito ?? 0} días`}
                         </span>
                       </div>
                     </CompanyName>

@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from back import crud, models, schemas
 from database.database import get_db
-from database.security import get_current_user
+from database.security import get_current_tenant_admin
 
 router = APIRouter(
     prefix="/dashboard",
@@ -20,7 +20,7 @@ router = APIRouter(
 @router.get("/summary", response_model=schemas.DashboardSummary)
 def get_dashboard_summary(
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
+    current_user: models.User = Depends(get_current_tenant_admin),
 ):
     """
     Devuelve el resumen completo del panel para la organización

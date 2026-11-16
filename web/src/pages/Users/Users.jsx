@@ -25,7 +25,11 @@ import {
   UserRow,
 } from './Users.styles';
 
-const initialForm = { nombre: '', username: '', email: '' };
+const initialForm = { nombre: '', username: '', email: '', perfil: 'venta' };
+const profileLabels = {
+  venta: 'Venta',
+  compra: 'Compra',
+};
 
 const Users = () => {
   const { user: currentUser, tenant } = useAuth();
@@ -94,6 +98,7 @@ const Users = () => {
         nombre: form.nombre.trim(),
         username: form.username.trim(),
         email: form.email.trim(),
+        perfil: form.perfil,
       });
       setForm(initialForm);
       setMessage({ error: false, text: result.message || 'El usuario se creó correctamente.' });
@@ -131,6 +136,17 @@ const Users = () => {
       await loadUsers();
     } catch (error) {
       setMessage({ error: true, text: error.message || 'No se pudo actualizar el usuario.' });
+    }
+  };
+
+  const handleProfileChange = async (account, perfil) => {
+    setMessage(null);
+    try {
+      await updateUser(account.id, { perfil });
+      setMessage({ error: false, text: `Perfil actualizado a ${profileLabels[perfil]}.` });
+      await loadUsers();
+    } catch (error) {
+      setMessage({ error: true, text: error.message || 'No se pudo actualizar el perfil.' });
     }
   };
 
@@ -202,6 +218,19 @@ const Users = () => {
                 required
               />
             </FormField>
+            <FormField>
+              <label htmlFor="new-user-profile">Perfil de acceso</label>
+              <FormInput
+                as="select"
+                id="new-user-profile"
+                value={form.perfil}
+                onChange={(event) => setForm({ ...form, perfil: event.target.value })}
+              >
+                <option value="venta">Venta</option>
+                <option value="compra">Compra</option>
+              </FormInput>
+              <span>Analista todavía no está habilitado. Los administradores conservan acceso total.</span>
+            </FormField>
             <PrimaryButton
               type="submit"
               disabled={atLimit || isSubmitting || isLoading}
@@ -224,7 +253,9 @@ const Users = () => {
                   <UserDetails>
                     <strong>
                       {account.nombre || account.username}
-                      {account.is_tenant_admin ? ' · Administrador' : ''}
+                      {account.is_tenant_admin
+                        ? ' · Administrador'
+                        : ` · ${profileLabels[account.perfil] || 'Sin perfil'}`}
                       {account.id === currentUser?.id ? ' (vos)' : ''}
                     </strong>
                     <span>Usuario: {account.username}</span>
@@ -240,6 +271,15 @@ const Users = () => {
                   {!account.is_tenant_admin && (
                     <>
                       <UserActions>
+                        <FormInput
+                          as="select"
+                          aria-label={`Perfil de ${account.nombre || account.username}`}
+                          value={account.perfil || 'venta'}
+                          onChange={(event) => handleProfileChange(account, event.target.value)}
+                        >
+                          <option value="venta">Venta</option>
+                          <option value="compra">Compra</option>
+                        </FormInput>
                         <SecondaryButton
                           type="button"
                           onClick={() => handleToggleActive(account)}

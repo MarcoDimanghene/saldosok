@@ -93,3 +93,24 @@ def get_current_tenant_admin(
             detail="Se requieren permisos de administrador de la organización.",
         )
     return current_user
+
+
+def _require_profile(current_user: User, profile: str) -> User:
+    if current_user.is_tenant_admin or current_user.perfil == profile:
+        return current_user
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Tu perfil no tiene permiso para esta operación.",
+    )
+
+
+def get_current_sales_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    return _require_profile(current_user, "venta")
+
+
+def get_current_purchase_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    return _require_profile(current_user, "compra")

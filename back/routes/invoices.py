@@ -4,7 +4,11 @@ from back.crud import invoices
 from back.crud import operating_results
 from back import models
 from database.database import get_db
-from database.security import get_current_user
+from database.security import (
+  get_current_purchase_user,
+  get_current_sales_user,
+  get_current_tenant_admin,
+)
 import back.schemas as schemas
 
 router = APIRouter(
@@ -17,7 +21,7 @@ router = APIRouter(
 #============================
 #CREAR FACTURA DE VENTAS
 @router.post("/sales", response_model=schemas.SalesInvoiceResponse, status_code=status.HTTP_201_CREATED)
-def create_sales_invoice(invoice: schemas.SalesInvoiceCreate, db: Session= Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def create_sales_invoice(invoice: schemas.SalesInvoiceCreate, db: Session= Depends(get_db), current_user: models.User = Depends(get_current_sales_user)):
   # Verificamos duplicidad por número dentro del tenant
   existing_invoice = (
     invoices.get_sales_invoice_by_cae(
@@ -31,6 +35,15 @@ def create_sales_invoice(invoice: schemas.SalesInvoiceCreate, db: Session= Depen
   if existing_invoice:
       raise HTTPException(status_code=400, detail="Invoice already exists")
   if invoice.tipo_comprobante in ["nota_credito", "nota_debito"]:
+    if (
+      not current_user.is_tenant_admin
+      and current_user.perfil == "venta"
+      and invoice.tipo_comprobante != "nota_credito"
+    ):
+      raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="El perfil Venta solo puede cargar notas de crédito de ventas.",
+      )
     if not invoice.factura_origen_id:
       raise HTTPException(
         status_code=400,
@@ -48,7 +61,7 @@ def create_sales_invoice(invoice: schemas.SalesInvoiceCreate, db: Session= Depen
 
 # BUSCAR FACTURAS POR NUMERO
 @router.get("/sales/search-number",response_model=list[schemas.SalesInvoiceResponse])
-def search_invoices_by_number(digits: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def search_invoices_by_number(digits: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_sales_user)):
   if not digits.strip():
     return []
   invoices_found = invoices.search_sales_invoices_by_number_end(db=db, tenant_id=current_user.tenant_id, last_digits=digits)
@@ -56,7 +69,15 @@ def search_invoices_by_number(digits: str, db: Session = Depends(get_db), curren
 
 #Editar actualizar
 @router.patch("/sales/{invoice_id}", response_model=schemas.SalesInvoiceResponse)
-def update_sales_invoice_route(invoice_id: int, invoice: schemas.SalesInvoiceUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def update_sales_invoice_route(invoice_id: int, invoice: schemas.SalesInvoiceUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_sales_user)):
+  if (
+    not current_user.is_tenant_admin
+    and {"tipo_comprobante", "factura_origen_id"}.intersection(invoice.model_fields_set)
+  ):
+    raise HTTPException(
+      status_code=status.HTTP_403_FORBIDDEN,
+      detail="El tipo y el origen de la factura no se pueden cambiar.",
+    )
   db_s_invoice = invoices.update_sales_invoice(db=db, tenant_id=current_user.tenant_id, invoice_id=invoice_id, invoice_update=invoice)
   if db_s_invoice is None:
     raise HTTPException(
@@ -70,7 +91,7 @@ def list_sales_invoices_route(
   skip: int = Query(0, ge=0),
   limit: int = Query(100, ge=1, le=500),
   db: Session = Depends(get_db),
-  current_user: models.User = Depends(get_current_user),
+  current_user: models.User = Depends(get_current_sales_user),
 ):
   invoices_list = invoices.get_listsales_invoices(db=db, tenant_id=current_user.tenant_id, skip=skip, limit=limit)
   return invoices_list
@@ -81,7 +102,7 @@ def list_sales_invoices_route(
 #============================
 # CREAR
 @router.post("/purchase", response_model=schemas.PurchaseInvoiceResponse, status_code=status.HTTP_201_CREATED)
-def create_purchase_invoice(invoice: schemas.PurchaseInvoiceCreate, db: Session=Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def create_purchase_invoice(invoice: schemas.PurchaseInvoiceCreate, db: Session=Depends(get_db), current_user: models.User = Depends(get_current_purchase_user)):
   existing_invoice_p = (
     invoices.get_purchase_by_cae(
       db=db,
@@ -94,6 +115,15 @@ def create_purchase_invoice(invoice: schemas.PurchaseInvoiceCreate, db: Session=
   if existing_invoice_p:
       raise HTTPException(status_code=400, detail="Invoice already exists")
   if invoice.tipo_comprobante in ["nota_credito", "nota_debito"]:
+    if (
+      not current_user.is_tenant_admin
+      and current_user.perfil == "compra"
+      and invoice.tipo_comprobante != "nota_credito"
+    ):
+      raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="El perfil Compra solo puede cargar notas de crédito de compras.",
+      )
     if not invoice.factura_origen_id:
       raise HTTPException(
         status_code=400,
@@ -117,7 +147,7 @@ def create_purchase_invoice(invoice: schemas.PurchaseInvoiceCreate, db: Session=
 def create_pending_purchase_invoice(
   purchase: schemas.PurchasePendingCreate,
   db: Session = Depends(get_db),
-  current_user: models.User = Depends(get_current_user),
+  current_user: models.User = Depends(get_current_purchase_user),
 ):
   return invoices.create_pending_purchase(
     db=db,
@@ -134,7 +164,7 @@ def complete_pending_purchase_invoice(
   invoice_id: int,
   data: schemas.PurchaseInvoiceComplete,
   db: Session = Depends(get_db),
-  current_user: models.User = Depends(get_current_user),
+  current_user: models.User = Depends(get_current_purchase_user),
 ):
   return invoices.complete_pending_purchase(
     db=db,
@@ -146,14 +176,22 @@ def complete_pending_purchase_invoice(
 
 # BUSCAR FACTURAS POR NUMERO
 @router.get("/purchase/search-number", response_model=list[schemas.PurchaseInvoiceResponse])
-def purchase_invoices_search_number(digits: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def purchase_invoices_search_number(digits: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_purchase_user)):
   if not digits.strip():
     return[]
   purchase_invoices_found = invoices.search_purchase_invoices_by_number_end(db=db, tenant_id=current_user.tenant_id, last_digits=digits)
   return purchase_invoices_found
 # Editar
 @router.patch("/purchase/{invoice_id}", response_model=schemas.PurchaseInvoiceResponse)
-def update_purchase_invoice_route(invoice_id: int, invoice: schemas.PurchaseInvoiceUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def update_purchase_invoice_route(invoice_id: int, invoice: schemas.PurchaseInvoiceUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_purchase_user)):
+  if (
+    not current_user.is_tenant_admin
+    and {"tipo_comprobante", "factura_origen_id"}.intersection(invoice.model_fields_set)
+  ):
+    raise HTTPException(
+      status_code=status.HTTP_403_FORBIDDEN,
+      detail="El tipo y el origen de la factura no se pueden cambiar.",
+    )
   db_p_invoice = invoices.update_purchase_invoice(db=db, tenant_id=current_user.tenant_id, invoice_id=invoice_id, invoice_update=invoice)
   if db_p_invoice is None:
     raise HTTPException(
@@ -168,7 +206,7 @@ def list_purchase_invoices_route(
   skip: int = Query(0, ge=0),
   limit: int = Query(100, ge=1, le=500),
   db: Session = Depends(get_db),
-  current_user: models.User = Depends(get_current_user),
+  current_user: models.User = Depends(get_current_purchase_user),
 ):
   invoices_list = invoices.get_listpurchase_invoice(db=db, tenant_id=current_user.tenant_id, skip=skip, limit=limit)
   return invoices_list
@@ -183,7 +221,7 @@ def list_purchase_invoices_route(
 )
 def list_operating_results_route(
   db: Session = Depends(get_db),
-  current_user: models.User = Depends(get_current_user),
+  current_user: models.User = Depends(get_current_tenant_admin),
 ):
   return operating_results.list_operating_results(
     db=db,
@@ -199,7 +237,7 @@ def list_operating_results_route(
 def create_operating_result_route(
   data: schemas.OperatingResultCreate,
   db: Session = Depends(get_db),
-  current_user: models.User = Depends(get_current_user),
+  current_user: models.User = Depends(get_current_tenant_admin),
 ):
   return operating_results.create_operating_result(
     db=db,
@@ -216,7 +254,7 @@ def update_operating_result_route(
   result_id: int,
   data: schemas.OperatingResultUpdate,
   db: Session = Depends(get_db),
-  current_user: models.User = Depends(get_current_user),
+  current_user: models.User = Depends(get_current_tenant_admin),
 ):
   return operating_results.update_operating_result(
     db=db,

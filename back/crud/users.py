@@ -10,6 +10,7 @@ _USER_AUDIT_FIELDS = (
     "is_active",
     "is_email_verified",
     "is_tenant_admin",
+    "perfil",
 )
 
 # ==========================================
@@ -44,6 +45,7 @@ def create_user(db: Session, tenant_id: int, user: schemas.UserCreate, hashed_pa
         is_active=user.is_active if hasattr(user, "is_active") else True,
         is_email_verified=False,
         is_tenant_admin=False,
+        perfil=user.perfil,
         tenant_id=tenant_id,
     )
     db.add(db_user)

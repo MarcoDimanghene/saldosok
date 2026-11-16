@@ -12,6 +12,15 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
   if (adminOnly && !user?.is_tenant_admin) {
     return <Navigate to="/dashboard" replace />;
   }
+  if (!user?.is_tenant_admin && !['venta', 'compra'].includes(user?.perfil)) {
+    return <p role="alert">Tu perfil todavía no tiene acceso habilitado.</p>;
+  }
+  if (
+    !user?.is_tenant_admin
+    && !['/invoices', '/companies'].includes(location.pathname)
+  ) {
+    return <Navigate to="/invoices" replace />;
+  }
 
   return children;
 };

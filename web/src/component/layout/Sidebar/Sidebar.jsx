@@ -39,6 +39,9 @@ const Sidebar = () => {
   const isActive = (path) => (
     location.pathname === path || location.pathname.startsWith(`${path}/`)
   );
+  const isTenantAdmin = Boolean(user?.is_tenant_admin);
+  const isSales = !isTenantAdmin && user?.perfil === 'venta';
+  const isPurchase = !isTenantAdmin && user?.perfil === 'compra';
 
   return (
     <SidebarContainer aria-label="Navegación principal">
@@ -53,27 +56,29 @@ const Sidebar = () => {
           </BrandInfo>
         </SidebarHeader>
         <NavList>
-          <NavItem
-            as={Link}
-            to="/dashboard"
-            $active={isActive('/dashboard')}
-            aria-current={isActive('/dashboard') ? 'page' : undefined}
-            title="Inicio"
-          >
-            <TbLayoutDashboard aria-hidden="true" />
-            <NavLabel>Inicio</NavLabel>
-          </NavItem>
+          {isTenantAdmin && (
+            <NavItem
+              as={Link}
+              to="/dashboard"
+              $active={isActive('/dashboard')}
+              aria-current={isActive('/dashboard') ? 'page' : undefined}
+              title="Inicio"
+            >
+              <TbLayoutDashboard aria-hidden="true" />
+              <NavLabel>Inicio</NavLabel>
+            </NavItem>
+          )}
           <NavItem
             as={Link}
             to="/companies"
             $active={isActive('/companies')}
             aria-current={isActive('/companies') ? 'page' : undefined}
-            title="Empresas"
+            title={isSales ? 'Clientes' : isPurchase ? 'Proveedores' : 'Empresas'}
           >
             <TbBuilding aria-hidden="true" />
-            <NavLabel>Empresas</NavLabel>
+            <NavLabel>{isSales ? 'Clientes' : isPurchase ? 'Proveedores' : 'Empresas'}</NavLabel>
           </NavItem>
-          {user?.is_tenant_admin && (
+          {isTenantAdmin && (
             <NavItem
               as={Link}
               to="/profile"
@@ -85,7 +90,7 @@ const Sidebar = () => {
               <NavLabel>Perfil</NavLabel>
             </NavItem>
           )}
-          {user?.is_tenant_admin && (
+          {isTenantAdmin && (
             <NavItem
               as={Link}
               to="/audit"
@@ -102,42 +107,48 @@ const Sidebar = () => {
             to="/invoices"
             $active={isActive('/invoices')}
             aria-current={isActive('/invoices') ? 'page' : undefined}
-            title="Ventas y compras"
+            title={isSales ? 'Ventas y cobros' : isPurchase ? 'Compras y pagos' : 'Ventas y compras'}
           >
             <TbFileInvoice aria-hidden="true" />
-            <NavLabel>Ventas y compras</NavLabel>
+            <NavLabel>
+              {isSales ? 'Ventas y cobros' : isPurchase ? 'Compras y pagos' : 'Ventas y compras'}
+            </NavLabel>
           </NavItem>
-          <NavItem
-            as={Link}
-            to="/operating-results"
-            $active={isActive('/operating-results')}
-            aria-current={isActive('/operating-results') ? 'page' : undefined}
-            title="Resultado Operativo"
-          >
-            <TbChartLine aria-hidden="true" />
-            <NavLabel>Resultado Operativo</NavLabel>
-          </NavItem>
-          <NavItem
-            as={Link}
-            to="/reports"
-            $active={isActive('/reports')}
-            aria-current={isActive('/reports') ? 'page' : undefined}
-            title="Informes"
-          >
-            <TbReportAnalytics aria-hidden="true" />
-            <NavLabel>Informes</NavLabel>
-          </NavItem>
-          <NavItem
-            as={Link}
-            to="/imports"
-            $active={isActive('/imports')}
-            aria-current={isActive('/imports') ? 'page' : undefined}
-            title="Importar Excel"
-          >
-            <TbFileSpreadsheet aria-hidden="true" />
-            <NavLabel>Importar Excel</NavLabel>
-          </NavItem>
-          {user?.is_tenant_admin && (
+          {isTenantAdmin && (
+            <>
+              <NavItem
+                as={Link}
+                to="/operating-results"
+                $active={isActive('/operating-results')}
+                aria-current={isActive('/operating-results') ? 'page' : undefined}
+                title="Resultado Operativo"
+              >
+                <TbChartLine aria-hidden="true" />
+                <NavLabel>Resultado Operativo</NavLabel>
+              </NavItem>
+              <NavItem
+                as={Link}
+                to="/reports"
+                $active={isActive('/reports')}
+                aria-current={isActive('/reports') ? 'page' : undefined}
+                title="Informes"
+              >
+                <TbReportAnalytics aria-hidden="true" />
+                <NavLabel>Informes</NavLabel>
+              </NavItem>
+              <NavItem
+                as={Link}
+                to="/imports"
+                $active={isActive('/imports')}
+                aria-current={isActive('/imports') ? 'page' : undefined}
+                title="Importar Excel"
+              >
+                <TbFileSpreadsheet aria-hidden="true" />
+                <NavLabel>Importar Excel</NavLabel>
+              </NavItem>
+            </>
+          )}
+          {isTenantAdmin && (
             <NavItem
               as={Link}
               to="/users"

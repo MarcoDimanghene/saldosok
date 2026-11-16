@@ -45,11 +45,13 @@ const InvoiceNotes = ({
   isLoading,
   onCreated,
   initialDirection = 'sales',
+  directionLock,
+  creditOnly = false,
   originInvoice,
 }) => {
   const [form, setForm] = useState(() => ({
     ...initialForm,
-    direction: initialDirection,
+    direction: directionLock || initialDirection,
     type: originInvoice?.tipo_comprobante === 'nota_credito'
       ? 'nota_debito'
       : initialForm.type,
@@ -145,7 +147,7 @@ const InvoiceNotes = ({
         </StatusMessage>
       )}
       <FormGrid>
-        {!originInvoice && (
+        {!originInvoice && !directionLock && (
           <FormField>
             <label htmlFor="note-direction">Operación relacionada</label>
             <FormInput
@@ -173,10 +175,10 @@ const InvoiceNotes = ({
             })}
             required
           >
-            {originInvoice?.tipo_comprobante !== 'nota_credito' && (
+            {(creditOnly || originInvoice?.tipo_comprobante !== 'nota_credito') && (
               <option value="nota_credito">Nota de crédito</option>
             )}
-            <option value="nota_debito">Nota de débito</option>
+            {!creditOnly && <option value="nota_debito">Nota de débito</option>}
           </FormInput>
         </FormField>
         {originInvoice ? (

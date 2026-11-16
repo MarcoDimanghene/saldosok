@@ -8,6 +8,7 @@ import {
   TbPlus,
 } from 'react-icons/tb';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../../hook/useAuth';
 import {
   Button,
   StatusBadge,
@@ -122,6 +123,10 @@ const initialInvoiceFilters = {
 
 const Invoices = () => {
   const dispatch = useDispatch();
+  const { user } = useAuth();
+  const isTenantAdmin = Boolean(user?.is_tenant_admin);
+  const isSalesUser = !isTenantAdmin && user?.perfil === 'venta';
+  const isPurchaseUser = !isTenantAdmin && user?.perfil === 'compra';
   const {
     items: companies,
     status: companiesStatus,
@@ -135,7 +140,7 @@ const Invoices = () => {
     salesError,
     purchasesError,
   } = useSelector((state) => state.invoices);
-  const [tab, setTab] = useState('sales');
+  const [tab, setTab] = useState(isPurchaseUser ? 'purchases' : 'sales');
   const [salesForm, setSalesForm] = useState(initialSalesForm);
   const [purchaseForm, setPurchaseForm] = useState(initialPurchaseForm);
   const [formalPurchaseForm, setFormalPurchaseForm] = useState(initialFormalPurchaseForm);
@@ -190,32 +195,32 @@ const Invoices = () => {
     : null;
 
   const refreshSales = useCallback(async () => {
-    await Promise.all([
-      dispatch(fetchSalesInvoices({ force: true })),
-      dispatch(fetchDashboard({ force: true })),
-    ]);
-  }, [dispatch]);
+    const requests = [dispatch(fetchSalesInvoices({ force: true }))];
+    if (isTenantAdmin) requests.push(dispatch(fetchDashboard({ force: true })));
+    await Promise.all(requests);
+  }, [dispatch, isTenantAdmin]);
 
   const refreshPurchases = useCallback(async () => {
-    await Promise.all([
-      dispatch(fetchPurchaseInvoices({ force: true })),
-      dispatch(fetchDashboard({ force: true })),
-    ]);
-  }, [dispatch]);
+    const requests = [dispatch(fetchPurchaseInvoices({ force: true }))];
+    if (isTenantAdmin) requests.push(dispatch(fetchDashboard({ force: true })));
+    await Promise.all(requests);
+  }, [dispatch, isTenantAdmin]);
 
   useEffect(() => {
     dispatch(fetchCompanies());
-    dispatch(fetchSalesInvoices());
-    dispatch(fetchPurchaseInvoices());
-  }, [dispatch]);
+    if (!isPurchaseUser) dispatch(fetchSalesInvoices());
+    if (!isSalesUser) dispatch(fetchPurchaseInvoices());
+  }, [dispatch, isPurchaseUser, isSalesUser]);
 
   const isLoading = (
     ['idle', 'loading'].includes(companiesStatus)
-    ||
-    ['idle', 'loading'].includes(salesStatus)
-    || ['idle', 'loading'].includes(purchasesStatus)
+    || (!isPurchaseUser && ['idle', 'loading'].includes(salesStatus))
+    || (!isSalesUser && ['idle', 'loading'].includes(purchasesStatus))
   );
-  const loadError = salesError || purchasesError;
+  const loadError = (
+    (isPurchaseUser ? null : salesError)
+    || (isSalesUser ? null : purchasesError)
+  );
 
   const handleSalesClientChange = (receiverId) => {
     const client = clients.find((company) => String(company.id) === receiverId);
@@ -416,10 +421,15 @@ const Invoices = () => {
   return (
     <>
       <PageHeader>
-        <h1>Ventas, compras y notas</h1>
+        <h1>
+          {isSalesUser ? 'Ventas y cobros' : isPurchaseUser ? 'Compras y pagos' : 'Ventas, compras y notas'}
+        </h1>
         <p>
-          Registra facturas, notas de crédito y débito, compras pendientes y movimientos de cobro y pago.
-          Usa el botón del ojo para abrir el detalle de una factura.
+          {isSalesUser
+            ? 'Gestiona facturas de venta, clientes, notas de crédito y cobros.'
+            : isPurchaseUser
+              ? 'Gestiona facturas de compra, proveedores, notas de crédito y pagos.'
+              : 'Registra facturas, notas de crédito y débito, compras pendientes y movimientos de cobro y pago. Usa el botón del ojo para abrir el detalle de una factura.'}
         </p>
       </PageHeader>
 
@@ -436,24 +446,28 @@ const Invoices = () => {
       )}
 
       <Tabs role="tablist" aria-label="Tipo de movimiento">
-        <TabButton
-          type="button"
-          role="tab"
-          aria-selected={tab === 'sales'}
-          $active={tab === 'sales'}
-          onClick={() => selectTab('sales')}
-        >
-          <TbArrowUpRight aria-hidden="true" /> Ventas
-        </TabButton>
-        <TabButton
-          type="button"
-          role="tab"
-          aria-selected={tab === 'purchases'}
-          $active={tab === 'purchases'}
-          onClick={() => selectTab('purchases')}
-        >
-          <TbArrowDownLeft aria-hidden="true" /> Compras
-        </TabButton>
+        {!isPurchaseUser && (
+          <TabButton
+            type="button"
+            role="tab"
+            aria-selected={tab === 'sales'}
+            $active={tab === 'sales'}
+            onClick={() => selectTab('sales')}
+          >
+            <TbArrowUpRight aria-hidden="true" /> Ventas
+          </TabButton>
+        )}
+        {!isSalesUser && (
+          <TabButton
+            type="button"
+            role="tab"
+            aria-selected={tab === 'purchases'}
+            $active={tab === 'purchases'}
+            onClick={() => selectTab('purchases')}
+          >
+            <TbArrowDownLeft aria-hidden="true" /> Compras
+          </TabButton>
+        )}
         <TabButton
           type="button"
           role="tab"
@@ -468,14 +482,22 @@ const Invoices = () => {
       {tab === 'notes' ? (
         <Panel as="section">
           <SectionHeading>
-            <h2>Nueva nota de crédito o débito</h2>
-            <span>Vincula cada nota a una factura formal de venta o compra.</span>
+            <h2>{isPurchaseUser ? 'Nueva nota de crédito de compra' : isSalesUser ? 'Nueva nota de crédito de venta' : 'Nueva nota de crédito o débito'}</h2>
+            <span>
+              {isPurchaseUser
+                ? 'Vincula la nota a una factura formal de compra.'
+                : isSalesUser
+                  ? 'Vincula la nota a una factura formal de venta.'
+                  : 'Vincula cada nota a una factura formal de venta o compra.'}
+            </span>
           </SectionHeading>
           <InvoiceNotes
             companies={companies}
             salesInvoices={adjustedSalesInvoices}
             purchaseInvoices={adjustedPurchaseInvoices}
             isLoading={isLoading}
+            directionLock={isSalesUser ? 'sales' : isPurchaseUser ? 'purchases' : undefined}
+            creditOnly={!isTenantAdmin}
             onCreated={(direction) => (
               direction === 'sales' ? refreshSales() : refreshPurchases()
             )}

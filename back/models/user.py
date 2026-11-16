@@ -17,6 +17,7 @@ class User(Base):
     is_email_verified = Column(Boolean, nullable=False, default=True, server_default="true")
     is_tenant_admin = Column(Boolean, nullable=False, default=False, server_default="false")
     is_superadmin = Column(Boolean, nullable=False, default=False, server_default="false")
+    perfil = Column(String(20), nullable=False, default="venta", server_default="venta")
     fecha_creacion = Column(DateTime(timezone=True), server_default=func.now())
 
     # Clave foránea que une al usuario con su organización (tenant)
