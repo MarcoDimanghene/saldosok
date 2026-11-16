@@ -95,8 +95,23 @@ def get_current_tenant_admin(
     return current_user
 
 
+def is_tenant_admin_or_analyst(current_user: User) -> bool:
+    return current_user.is_tenant_admin or current_user.perfil == "analista"
+
+
+def get_current_tenant_admin_or_analyst(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if not is_tenant_admin_or_analyst(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Se requieren permisos de administrador o perfil Analista.",
+        )
+    return current_user
+
+
 def _require_profile(current_user: User, profile: str) -> User:
-    if current_user.is_tenant_admin or current_user.perfil == profile:
+    if is_tenant_admin_or_analyst(current_user) or current_user.perfil == profile:
         return current_user
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,

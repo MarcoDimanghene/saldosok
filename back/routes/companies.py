@@ -4,7 +4,11 @@ from sqlalchemy.orm import Session
 from back.crud import companies
 from back import models
 from database.database import get_db
-from database.security import get_current_tenant_admin, get_current_user
+from database.security import (
+    get_current_tenant_admin_or_analyst,
+    get_current_user,
+    is_tenant_admin_or_analyst,
+)
 import back.schemas as schemas
 
 router = APIRouter(
@@ -14,7 +18,7 @@ router = APIRouter(
 
 
 def _company_visibility(query, current_user: models.User):
-    if current_user.is_tenant_admin:
+    if is_tenant_admin_or_analyst(current_user):
         return query
     if current_user.perfil == "venta":
         return query.filter(
@@ -31,7 +35,7 @@ def _company_visibility(query, current_user: models.User):
 
 
 def _company_response(company: models.Company, current_user: models.User):
-    if current_user.is_tenant_admin or (
+    if is_tenant_admin_or_analyst(current_user) or (
         current_user.perfil == "compra" and company.es_proveedor
     ):
         return company
@@ -53,7 +57,7 @@ def _company_response(company: models.Company, current_user: models.User):
 
 
 def _validate_company_creation(company: schemas.CompanyCreate, current_user: models.User):
-    if current_user.is_tenant_admin:
+    if is_tenant_admin_or_analyst(current_user):
         return
     if current_user.perfil == "venta":
         valid = company.is_client and not company.is_supplier and not company.is_issuer
@@ -73,7 +77,7 @@ def _validate_company_update(
     existing: models.Company,
     current_user: models.User,
 ):
-    if current_user.is_tenant_admin:
+    if is_tenant_admin_or_analyst(current_user):
         return
     if current_user.perfil == "venta":
         if not existing.es_cliente:
@@ -215,7 +219,7 @@ def update_company_route(company_id: int, company: schemas.CompanyUpdate, db: Se
     return _company_response(db_company, current_user)
 
 @router.delete("/{company_id}")
-def delete_company_route(company_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_tenant_admin)):
+def delete_company_route(company_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_tenant_admin_or_analyst)):
     # 1. Ejecutamos el borrado en el CRUD
     exito = companies.delete_company(db, tenant_id=current_user.tenant_id, company_id=company_id)
 

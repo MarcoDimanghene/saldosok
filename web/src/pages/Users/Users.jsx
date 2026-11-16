@@ -29,6 +29,7 @@ const initialForm = { nombre: '', username: '', email: '', perfil: 'venta' };
 const profileLabels = {
   venta: 'Venta',
   compra: 'Compra',
+  analista: 'Analista',
 };
 
 const Users = () => {
@@ -228,8 +229,9 @@ const Users = () => {
               >
                 <option value="venta">Venta</option>
                 <option value="compra">Compra</option>
+                <option value="analista">Analista</option>
               </FormInput>
-              <span>Analista todavía no está habilitado. Los administradores conservan acceso total.</span>
+              <span>Analista accede a todos los módulos excepto a la administración de usuarios.</span>
             </FormField>
             <PrimaryButton
               type="submit"
@@ -279,6 +281,7 @@ const Users = () => {
                         >
                           <option value="venta">Venta</option>
                           <option value="compra">Compra</option>
+                          <option value="analista">Analista</option>
                         </FormInput>
                         <SecondaryButton
                           type="button"

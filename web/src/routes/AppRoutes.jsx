@@ -34,7 +34,7 @@ const AppRoutes = () => {
         <Route
           path="/profile"
           element={(
-            <ProtectedRoute adminOnly>
+            <ProtectedRoute fullAccessOnly>
               <Profile />
             </ProtectedRoute>
           )}
@@ -47,7 +47,7 @@ const AppRoutes = () => {
         <Route
           path="/audit"
           element={(
-            <ProtectedRoute adminOnly>
+            <ProtectedRoute fullAccessOnly>
               <AuditLog />
             </ProtectedRoute>
           )}
@@ -55,7 +55,7 @@ const AppRoutes = () => {
         <Route
           path="/users"
           element={(
-            <ProtectedRoute adminOnly>
+            <ProtectedRoute usersAdminOnly>
               <Users />
             </ProtectedRoute>
           )}

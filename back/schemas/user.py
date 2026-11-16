@@ -13,7 +13,7 @@ class UserBase(BaseModel):
     username: str = Field(..., min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9_.-]+$")
     email: Optional[EmailStr] = None
     is_active: Optional[bool] = True
-    perfil: Literal["venta", "compra"] = "venta"
+    perfil: Literal["venta", "compra", "analista"] = "venta"
 
 
 # 2. Schema para invitar un nuevo usuario
@@ -28,7 +28,7 @@ class UserUpdate(BaseModel):
     username: Optional[str] = Field(None, min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9_.-]+$")
     email: Optional[EmailStr] = None
     is_active: Optional[bool] = None
-    perfil: Optional[Literal["venta", "compra"]] = None
+    perfil: Optional[Literal["venta", "compra", "analista"]] = None
 
 
 # 4. Schema de Respuesta Pública (Salida)

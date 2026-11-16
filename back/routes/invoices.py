@@ -7,7 +7,8 @@ from database.database import get_db
 from database.security import (
   get_current_purchase_user,
   get_current_sales_user,
-  get_current_tenant_admin,
+  get_current_tenant_admin_or_analyst,
+  is_tenant_admin_or_analyst,
 )
 import back.schemas as schemas
 
@@ -36,7 +37,7 @@ def create_sales_invoice(invoice: schemas.SalesInvoiceCreate, db: Session= Depen
       raise HTTPException(status_code=400, detail="Invoice already exists")
   if invoice.tipo_comprobante in ["nota_credito", "nota_debito"]:
     if (
-      not current_user.is_tenant_admin
+      not is_tenant_admin_or_analyst(current_user)
       and current_user.perfil == "venta"
       and invoice.tipo_comprobante != "nota_credito"
     ):
@@ -71,7 +72,7 @@ def search_invoices_by_number(digits: str, db: Session = Depends(get_db), curren
 @router.patch("/sales/{invoice_id}", response_model=schemas.SalesInvoiceResponse)
 def update_sales_invoice_route(invoice_id: int, invoice: schemas.SalesInvoiceUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_sales_user)):
   if (
-    not current_user.is_tenant_admin
+    not is_tenant_admin_or_analyst(current_user)
     and {"tipo_comprobante", "factura_origen_id"}.intersection(invoice.model_fields_set)
   ):
     raise HTTPException(
@@ -116,7 +117,7 @@ def create_purchase_invoice(invoice: schemas.PurchaseInvoiceCreate, db: Session=
       raise HTTPException(status_code=400, detail="Invoice already exists")
   if invoice.tipo_comprobante in ["nota_credito", "nota_debito"]:
     if (
-      not current_user.is_tenant_admin
+      not is_tenant_admin_or_analyst(current_user)
       and current_user.perfil == "compra"
       and invoice.tipo_comprobante != "nota_credito"
     ):
@@ -185,7 +186,7 @@ def purchase_invoices_search_number(digits: str, db: Session = Depends(get_db), 
 @router.patch("/purchase/{invoice_id}", response_model=schemas.PurchaseInvoiceResponse)
 def update_purchase_invoice_route(invoice_id: int, invoice: schemas.PurchaseInvoiceUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_purchase_user)):
   if (
-    not current_user.is_tenant_admin
+    not is_tenant_admin_or_analyst(current_user)
     and {"tipo_comprobante", "factura_origen_id"}.intersection(invoice.model_fields_set)
   ):
     raise HTTPException(
@@ -221,7 +222,7 @@ def list_purchase_invoices_route(
 )
 def list_operating_results_route(
   db: Session = Depends(get_db),
-  current_user: models.User = Depends(get_current_tenant_admin),
+  current_user: models.User = Depends(get_current_tenant_admin_or_analyst),
 ):
   return operating_results.list_operating_results(
     db=db,
@@ -237,7 +238,7 @@ def list_operating_results_route(
 def create_operating_result_route(
   data: schemas.OperatingResultCreate,
   db: Session = Depends(get_db),
-  current_user: models.User = Depends(get_current_tenant_admin),
+  current_user: models.User = Depends(get_current_tenant_admin_or_analyst),
 ):
   return operating_results.create_operating_result(
     db=db,
@@ -254,7 +255,7 @@ def update_operating_result_route(
   result_id: int,
   data: schemas.OperatingResultUpdate,
   db: Session = Depends(get_db),
-  current_user: models.User = Depends(get_current_tenant_admin),
+  current_user: models.User = Depends(get_current_tenant_admin_or_analyst),
 ):
   return operating_results.update_operating_result(
     db=db,

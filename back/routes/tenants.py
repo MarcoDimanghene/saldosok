@@ -13,6 +13,7 @@ from database.database import get_db
 from database.security import (
     get_current_superadmin,
     get_current_user,
+    is_tenant_admin_or_analyst,
     get_password_hash,
 )
 
@@ -187,7 +188,7 @@ def get_current_tenant_info(
     tenant = crud.get_tenant(db=db, tenant_id=current_user.tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant no encontrado.")
-    if not current_user.is_tenant_admin:
+    if not is_tenant_admin_or_analyst(current_user):
         return schemas.TenantResponse(
             id=tenant.id,
             razon_social=tenant.razon_social,
@@ -202,7 +203,7 @@ def update_current_tenant(
     current_user: models.User = Depends(get_current_user)
 ):
     """Actualiza el perfil de la organización del usuario."""
-    if not current_user.is_tenant_admin:
+    if not is_tenant_admin_or_analyst(current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Se requieren permisos de administrador para modificar el perfil.",

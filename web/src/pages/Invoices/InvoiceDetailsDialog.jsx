@@ -43,6 +43,7 @@ const InvoiceDetailsDialog = ({
   onUpdated,
 }) => {
   const { user } = useAuth();
+  const hasFullAccess = Boolean(user?.is_tenant_admin || user?.perfil === 'analista');
   const dialogRef = useRef(null);
   const [showNoteForm, setShowNoteForm] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState(false);
@@ -387,7 +388,7 @@ const InvoiceDetailsDialog = ({
 
         {isFormalPurchase && (!invoice.tipo_comprobante
           || invoice.tipo_comprobante === 'factura'
-          || (user?.is_tenant_admin && invoice.tipo_comprobante === 'nota_credito')) && (
+          || (hasFullAccess && invoice.tipo_comprobante === 'nota_credito')) && (
           <section>
             <SectionHeading>
               <h3>Notas de crédito y débito</h3>
@@ -407,8 +408,8 @@ const InvoiceDetailsDialog = ({
                 purchaseInvoices={purchaseInvoices}
                 isLoading={false}
                 initialDirection={direction}
-                directionLock={user?.is_tenant_admin ? undefined : direction}
-                creditOnly={!user?.is_tenant_admin}
+                directionLock={hasFullAccess ? undefined : direction}
+                creditOnly={!hasFullAccess}
                 originInvoice={invoice}
                 onCreated={async (noteDirection) => {
                   await onUpdated(noteDirection);

@@ -40,8 +40,9 @@ const Sidebar = () => {
     location.pathname === path || location.pathname.startsWith(`${path}/`)
   );
   const isTenantAdmin = Boolean(user?.is_tenant_admin);
-  const isSales = !isTenantAdmin && user?.perfil === 'venta';
-  const isPurchase = !isTenantAdmin && user?.perfil === 'compra';
+  const hasFullAccess = isTenantAdmin || user?.perfil === 'analista';
+  const isSales = !hasFullAccess && user?.perfil === 'venta';
+  const isPurchase = !hasFullAccess && user?.perfil === 'compra';
 
   return (
     <SidebarContainer aria-label="Navegación principal">
@@ -56,7 +57,7 @@ const Sidebar = () => {
           </BrandInfo>
         </SidebarHeader>
         <NavList>
-          {isTenantAdmin && (
+          {hasFullAccess && (
             <NavItem
               as={Link}
               to="/dashboard"
@@ -78,7 +79,7 @@ const Sidebar = () => {
             <TbBuilding aria-hidden="true" />
             <NavLabel>{isSales ? 'Clientes' : isPurchase ? 'Proveedores' : 'Empresas'}</NavLabel>
           </NavItem>
-          {isTenantAdmin && (
+          {hasFullAccess && (
             <NavItem
               as={Link}
               to="/profile"
@@ -90,7 +91,7 @@ const Sidebar = () => {
               <NavLabel>Perfil</NavLabel>
             </NavItem>
           )}
-          {isTenantAdmin && (
+          {hasFullAccess && (
             <NavItem
               as={Link}
               to="/audit"
@@ -114,7 +115,7 @@ const Sidebar = () => {
               {isSales ? 'Ventas y cobros' : isPurchase ? 'Compras y pagos' : 'Ventas y compras'}
             </NavLabel>
           </NavItem>
-          {isTenantAdmin && (
+          {hasFullAccess && (
             <>
               <NavItem
                 as={Link}

@@ -62,6 +62,7 @@ const FIELD_LABELS = {
   is_active: 'Activo',
   is_email_verified: 'Correo confirmado',
   is_tenant_admin: 'Administrador',
+  perfil: 'Perfil',
   expires_at: 'Vence',
   password_changed: 'Contraseña cambiada',
   method: 'Método',

@@ -124,9 +124,9 @@ const initialInvoiceFilters = {
 const Invoices = () => {
   const dispatch = useDispatch();
   const { user } = useAuth();
-  const isTenantAdmin = Boolean(user?.is_tenant_admin);
-  const isSalesUser = !isTenantAdmin && user?.perfil === 'venta';
-  const isPurchaseUser = !isTenantAdmin && user?.perfil === 'compra';
+  const hasFullAccess = Boolean(user?.is_tenant_admin || user?.perfil === 'analista');
+  const isSalesUser = !hasFullAccess && user?.perfil === 'venta';
+  const isPurchaseUser = !hasFullAccess && user?.perfil === 'compra';
   const {
     items: companies,
     status: companiesStatus,
@@ -196,15 +196,15 @@ const Invoices = () => {
 
   const refreshSales = useCallback(async () => {
     const requests = [dispatch(fetchSalesInvoices({ force: true }))];
-    if (isTenantAdmin) requests.push(dispatch(fetchDashboard({ force: true })));
+    if (hasFullAccess) requests.push(dispatch(fetchDashboard({ force: true })));
     await Promise.all(requests);
-  }, [dispatch, isTenantAdmin]);
+  }, [dispatch, hasFullAccess]);
 
   const refreshPurchases = useCallback(async () => {
     const requests = [dispatch(fetchPurchaseInvoices({ force: true }))];
-    if (isTenantAdmin) requests.push(dispatch(fetchDashboard({ force: true })));
+    if (hasFullAccess) requests.push(dispatch(fetchDashboard({ force: true })));
     await Promise.all(requests);
-  }, [dispatch, isTenantAdmin]);
+  }, [dispatch, hasFullAccess]);
 
   useEffect(() => {
     dispatch(fetchCompanies());
@@ -497,7 +497,7 @@ const Invoices = () => {
             purchaseInvoices={adjustedPurchaseInvoices}
             isLoading={isLoading}
             directionLock={isSalesUser ? 'sales' : isPurchaseUser ? 'purchases' : undefined}
-            creditOnly={!isTenantAdmin}
+            creditOnly={!hasFullAccess}
             onCreated={(direction) => (
               direction === 'sales' ? refreshSales() : refreshPurchases()
             )}
