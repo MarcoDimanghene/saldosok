@@ -49,6 +49,9 @@ export const INVOICES_ROUTES = {
   purchasePendingCreate: '/invoices/purchase/pending',
   purchaseComplete: (invoiceId) => `/invoices/purchase/${invoiceId}/formal-invoice`,
   purchaseUpdate: (invoiceId) => `/invoices/purchase/${invoiceId}`,
+  operatingResultsList: '/invoices/operating-results/list',
+  operatingResultsCreate: '/invoices/operating-results',
+  operatingResultsUpdate: (resultId) => `/invoices/operating-results/${resultId}`,
 };
 
 export const PAYMENTS_ROUTES = {
@@ -77,6 +80,7 @@ export const ROUTE_MAP = {
   users: '/users',
   companies: '/companies',
   invoices: '/invoices',
+  operatingResults: '/operating-results',
   imports: '/imports',
   reports: '/reports',
   audit: '/audit',

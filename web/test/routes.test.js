@@ -31,6 +31,7 @@ test('navigation paths match the routes rendered by AppRoutes', () => {
     users: '/users',
     companies: '/companies',
     invoices: '/invoices',
+    operatingResults: '/operating-results',
     imports: '/imports',
     reports: '/reports',
     audit: '/audit',
@@ -110,6 +111,9 @@ test('API endpoint paths match the FastAPI routers', () => {
       purchasePendingCreate: INVOICES_ROUTES.purchasePendingCreate,
       purchaseComplete: INVOICES_ROUTES.purchaseComplete(20),
       purchaseUpdate: INVOICES_ROUTES.purchaseUpdate(19),
+      operatingResultsList: INVOICES_ROUTES.operatingResultsList,
+      operatingResultsCreate: INVOICES_ROUTES.operatingResultsCreate,
+      operatingResultsUpdate: INVOICES_ROUTES.operatingResultsUpdate(21),
     },
     {
       extract: '/invoices/extract',
@@ -123,6 +127,9 @@ test('API endpoint paths match the FastAPI routers', () => {
       purchasePendingCreate: '/invoices/purchase/pending',
       purchaseComplete: '/invoices/purchase/20/formal-invoice',
       purchaseUpdate: '/invoices/purchase/19',
+      operatingResultsList: '/invoices/operating-results/list',
+      operatingResultsCreate: '/invoices/operating-results',
+      operatingResultsUpdate: '/invoices/operating-results/21',
     }
   );
 

@@ -4,6 +4,7 @@ import Dashboard from '../pages/Dashboard/Dashboard';
 import Users from '../pages/Users/Users';
 import Companies from '../pages/Companies/Companies';
 import Invoices from '../pages/Invoices/Invoices';
+import OperatingResults from '../pages/OperatingResults/OperatingResults';
 import Reports from '../pages/Reports/Reports';
 import AuditLog from '../pages/Audit/AuditLog';
 import ImportExcel from '../pages/ImportExcel/ImportExcel';
@@ -40,6 +41,7 @@ const AppRoutes = () => {
         />
         <Route path="/companies" element={<Companies />} />
         <Route path="/invoices" element={<Invoices />} />
+        <Route path="/operating-results" element={<OperatingResults />} />
         <Route path="/imports" element={<ImportExcel />} />
         <Route path="/reports" element={<Reports />} />
         <Route

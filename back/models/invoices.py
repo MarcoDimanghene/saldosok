@@ -56,6 +56,11 @@ class PurchaseInvoice(Base):
     proveedor = relationship("Company", foreign_keys=[proveedor_id])
     receptor = relationship("Company", foreign_keys=[receptor_id])
     pagos = relationship("PurchasePayment", back_populates="factura")
+    resultado_operativo = relationship(
+        "OperatingResult",
+        back_populates="factura",
+        uselist=False,
+    )
 
     @property
     def monto_pagado(self):

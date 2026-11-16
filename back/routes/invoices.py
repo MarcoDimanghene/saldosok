@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from back.crud import invoices
+from back.crud import operating_results
 from back import models
 from database.database import get_db
 from database.security import get_current_user
@@ -171,3 +172,55 @@ def list_purchase_invoices_route(
 ):
   invoices_list = invoices.get_listpurchase_invoice(db=db, tenant_id=current_user.tenant_id, skip=skip, limit=limit)
   return invoices_list
+
+
+#============================
+#     RESULTADOS OPERATIVOS
+#============================
+@router.get(
+  "/operating-results/list",
+  response_model=list[schemas.OperatingResultResponse],
+)
+def list_operating_results_route(
+  db: Session = Depends(get_db),
+  current_user: models.User = Depends(get_current_user),
+):
+  return operating_results.list_operating_results(
+    db=db,
+    tenant_id=current_user.tenant_id,
+  )
+
+
+@router.post(
+  "/operating-results",
+  response_model=schemas.OperatingResultResponse,
+  status_code=status.HTTP_201_CREATED,
+)
+def create_operating_result_route(
+  data: schemas.OperatingResultCreate,
+  db: Session = Depends(get_db),
+  current_user: models.User = Depends(get_current_user),
+):
+  return operating_results.create_operating_result(
+    db=db,
+    tenant_id=current_user.tenant_id,
+    data=data,
+  )
+
+
+@router.patch(
+  "/operating-results/{result_id}",
+  response_model=schemas.OperatingResultResponse,
+)
+def update_operating_result_route(
+  result_id: int,
+  data: schemas.OperatingResultUpdate,
+  db: Session = Depends(get_db),
+  current_user: models.User = Depends(get_current_user),
+):
+  return operating_results.update_operating_result(
+    db=db,
+    tenant_id=current_user.tenant_id,
+    result_id=result_id,
+    data=data,
+  )

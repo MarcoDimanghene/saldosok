@@ -1,5 +1,6 @@
 from .companies import Company
 from .invoices import PurchaseInvoice, SalesInvoice
+from .operating_results import OperatingResult
 from .payments import SalesCollection, PurchasePayment
 from .tenants import Tenant
 from .user import User

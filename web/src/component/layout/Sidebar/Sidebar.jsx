@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   TbBuilding,
   TbBuildingBank,
+  TbChartLine,
   TbFileInvoice,
   TbFileSpreadsheet,
   TbHistory,
@@ -105,6 +106,16 @@ const Sidebar = () => {
           >
             <TbFileInvoice aria-hidden="true" />
             <NavLabel>Ventas y compras</NavLabel>
+          </NavItem>
+          <NavItem
+            as={Link}
+            to="/operating-results"
+            $active={isActive('/operating-results')}
+            aria-current={isActive('/operating-results') ? 'page' : undefined}
+            title="Resultado Operativo"
+          >
+            <TbChartLine aria-hidden="true" />
+            <NavLabel>Resultado Operativo</NavLabel>
           </NavItem>
           <NavItem
             as={Link}

@@ -4,6 +4,11 @@ from .invoices import (
     PurchasePendingCreate, PurchaseInvoiceComplete,
     SalesInvoiceCreate, SalesInvoiceUpdate, SalesInvoiceResponse,
 )
+from .operating_results import (
+    OperatingResultCreate,
+    OperatingResultUpdate,
+    OperatingResultResponse,
+)
 from .payments import CollectionCreate, CollectionResponse, PaymentCreate, PaymentResponse
 from .user import (
     UserCreate, UserUpdate, UserResponse, UserCreateResponse, UserInDB,

@@ -13,3 +13,9 @@ export const completePendingPurchase = (invoiceId, invoice) =>
   apiClient.put(INVOICES_ROUTES.purchaseComplete(invoiceId), invoice);
 export const updatePurchaseInvoice = (invoiceId, invoice) =>
   apiClient.patch(INVOICES_ROUTES.purchaseUpdate(invoiceId), invoice);
+export const getOperatingResults = () =>
+  apiClient.get(INVOICES_ROUTES.operatingResultsList);
+export const createOperatingResult = (result) =>
+  apiClient.post(INVOICES_ROUTES.operatingResultsCreate, result);
+export const updateOperatingResult = (resultId, result) =>
+  apiClient.patch(INVOICES_ROUTES.operatingResultsUpdate(resultId), result);
