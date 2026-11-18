@@ -18,6 +18,7 @@ from .users import (
     count_users,
     get_user,
     update_user,
+    update_user_password,
     delete_user
 )
 

@@ -19,6 +19,7 @@ class UserBase(BaseModel):
 # 2. Schema para invitar un nuevo usuario
 class UserCreate(UserBase):
     email: EmailStr
+    password: str = Field(..., min_length=6, max_length=128)
 
 
 # 3. Schema para Actualizar Usuario (Entrada opcional)
@@ -29,6 +30,10 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     is_active: Optional[bool] = None
     perfil: Optional[Literal["venta", "compra", "analista"]] = None
+
+
+class UserPasswordUpdate(BaseModel):
+    password: str = Field(..., min_length=6, max_length=128)
 
 
 # 4. Schema de Respuesta Pública (Salida)

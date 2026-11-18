@@ -13,6 +13,7 @@ from sqlalchemy.orm import sessionmaker
 from back import models
 from back.routes.auth import login_for_access_token
 from back.routes.tenants import register_tenant_with_user, verify_email
+from back.services.email import send_verification_email
 from back.schemas.tenants import TenantRegister
 from back.schemas.user import EmailVerificationToken
 from database.database import Base
@@ -46,6 +47,10 @@ class EmailVerificationTests(unittest.TestCase):
     def tearDown(self):
         self.session.close()
         self.engine.dispose()
+
+    def test_outgoing_email_is_disabled(self):
+        with self.assertRaisesRegex(RuntimeError, "está desactivado"):
+            send_verification_email("user@example.com", "token")
 
     def test_unverified_user_can_login(self):
         form = SimpleNamespace(username=self.user.email, password="secret")
@@ -100,7 +105,7 @@ class EmailVerificationTests(unittest.TestCase):
         self.assertFalse(self.user.is_email_verified)
 
     @patch("back.services.email_verification.send_verification_email")
-    def test_registration_creates_user_first_and_sends_email_verification(self, send_email):
+    def test_registration_does_not_send_email(self, send_email):
         registration = TenantRegister(
             nombre="Administradora",
             dni="30123456",
@@ -122,10 +127,10 @@ class EmailVerificationTests(unittest.TestCase):
         self.assertIsNone(tenant.cuit)
         self.assertIsNone(tenant.razon_social)
         self.assertEqual(self.session.query(models.Company).count(), 0)
-        send_email.assert_called_once()
-        self.assertEqual(send_email.call_args.args[0], "admin@example.com")
+        send_email.assert_not_called()
         self.assertEqual(result["user"]["is_email_verified"], False)
         self.assertTrue(result["recovery_code"])
+        self.assertIn("correos están desactivados", result["message"])
 
     def test_registration_requires_email(self):
         with self.assertRaises(ValidationError):

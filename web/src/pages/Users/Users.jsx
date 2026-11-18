@@ -5,8 +5,8 @@ import {
   createUser,
   deleteUser,
   getUsers,
-  resendUserInvitation,
   updateUser,
+  updateUserPassword,
 } from '../../services/userService';
 import {
   ContentGrid,
@@ -25,7 +25,7 @@ import {
   UserRow,
 } from './Users.styles';
 
-const initialForm = { nombre: '', username: '', email: '', perfil: 'venta' };
+const initialForm = { nombre: '', username: '', email: '', password: '', perfil: 'venta' };
 const profileLabels = {
   venta: 'Venta',
   compra: 'Compra',
@@ -36,6 +36,7 @@ const Users = () => {
   const { user: currentUser, tenant } = useAuth();
   const [users, setUsers] = useState([]);
   const [form, setForm] = useState(initialForm);
+  const [passwords, setPasswords] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
@@ -93,12 +94,17 @@ const Users = () => {
       setMessage({ error: true, text: 'Ingresa un correo electrónico válido para el usuario.' });
       return;
     }
+    if (form.password.length < 6 || form.password.length > 128) {
+      setMessage({ error: true, text: 'La contraseña debe tener entre 6 y 128 caracteres.' });
+      return;
+    }
     setIsSubmitting(true);
     try {
       const result = await createUser({
         nombre: form.nombre.trim(),
         username: form.username.trim(),
         email: form.email.trim(),
+        password: form.password,
         perfil: form.perfil,
       });
       setForm(initialForm);
@@ -112,15 +118,20 @@ const Users = () => {
     }
   };
 
-  const handleResendInvitation = async (account) => {
+  const handleChangePassword = async (account) => {
     setMessage(null);
+    const password = passwords[account.id] || '';
+    if (password.length < 6 || password.length > 128) {
+      setMessage({ error: true, text: 'La contraseña debe tener entre 6 y 128 caracteres.' });
+      return;
+    }
     setIsSubmitting(true);
     try {
-      const result = await resendUserInvitation(account.id);
+      const result = await updateUserPassword(account.id, password);
+      setPasswords((current) => ({ ...current, [account.id]: '' }));
       setMessage({ error: false, text: result.message });
-      await loadUsers();
     } catch (error) {
-      setMessage({ error: true, text: error.message || 'No se pudo reenviar la invitación.' });
+      setMessage({ error: true, text: error.message || 'No se pudo cambiar la contraseña.' });
     } finally {
       setIsSubmitting(false);
     }
@@ -170,7 +181,7 @@ const Users = () => {
         <h1>Usuarios del espacio de trabajo</h1>
         <p>
           Administra quién accede a {tenant?.razon_social || 'tu espacio de trabajo'}.
-          Cada persona establece su contraseña desde una invitación por correo.
+          Los correos están desactivados; puedes definir la contraseña de cada cuenta desde aquí.
         </p>
       </PageHeader>
 
@@ -220,6 +231,19 @@ const Users = () => {
               />
             </FormField>
             <FormField>
+              <label htmlFor="new-user-password">Contraseña</label>
+              <FormInput
+                id="new-user-password"
+                type="password"
+                autoComplete="new-password"
+                minLength={6}
+                maxLength={128}
+                value={form.password}
+                onChange={(event) => setForm({ ...form, password: event.target.value })}
+                required
+              />
+            </FormField>
+            <FormField>
               <label htmlFor="new-user-profile">Perfil de acceso</label>
               <FormInput
                 as="select"
@@ -264,15 +288,14 @@ const Users = () => {
                     {account.email && <span>Correo: {account.email}</span>}
                     <span>{account.is_active ? 'Activo' : 'Inactivo'}</span>
                     <span>
-                      {account.is_email_verified ? 'Correo confirmado' : 'Invitación pendiente'}
+                      {account.is_email_verified
+                        ? 'Correo confirmado'
+                        : 'Correo sin confirmar (envíos desactivados)'}
                     </span>
-                    {!account.is_email_verified && !account.email && (
-                      <span>Agrega un correo para enviar la invitación</span>
-                    )}
                   </UserDetails>
-                  {!account.is_tenant_admin && (
-                    <>
-                      <UserActions>
+                  <UserActions>
+                    {!account.is_tenant_admin && (
+                      <>
                         <FormInput
                           as="select"
                           aria-label={`Perfil de ${account.nombre || account.username}`}
@@ -295,18 +318,29 @@ const Users = () => {
                         >
                           Eliminar
                         </SecondaryButton>
-                        {!account.is_email_verified && account.email && account.is_active && (
-                          <SecondaryButton
-                            type="button"
-                            onClick={() => handleResendInvitation(account)}
-                            disabled={isSubmitting}
-                          >
-                            Reenviar invitación
-                          </SecondaryButton>
-                        )}
-                      </UserActions>
-                    </>
-                  )}
+                      </>
+                    )}
+                    <FormInput
+                      type="password"
+                      aria-label={`Nueva contraseña para ${account.nombre || account.username}`}
+                      autoComplete="new-password"
+                      minLength={6}
+                      maxLength={128}
+                      placeholder="Nueva contraseña"
+                      value={passwords[account.id] || ''}
+                      onChange={(event) => setPasswords({
+                        ...passwords,
+                        [account.id]: event.target.value,
+                      })}
+                    />
+                    <SecondaryButton
+                      type="button"
+                      onClick={() => handleChangePassword(account)}
+                      disabled={isSubmitting}
+                    >
+                      Cambiar contraseña
+                    </SecondaryButton>
+                  </UserActions>
                 </UserRow>
               ))}
             </UserList>

@@ -77,6 +77,7 @@ test('API endpoint paths match the FastAPI routers', () => {
       me: USERS_ROUTES.me,
       byId: USERS_ROUTES.byId(7),
       invitation: USERS_ROUTES.invitation(7),
+      password: USERS_ROUTES.password(7),
       update: USERS_ROUTES.update(7),
       delete: USERS_ROUTES.delete(7),
     },
@@ -86,6 +87,7 @@ test('API endpoint paths match the FastAPI routers', () => {
       me: '/users/me',
       byId: '/users/7',
       invitation: '/users/7/invitation',
+      password: '/users/7/password',
       update: '/users/7',
       delete: '/users/7',
     }

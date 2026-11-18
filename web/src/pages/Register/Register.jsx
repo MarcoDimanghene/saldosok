@@ -88,14 +88,8 @@ const Register = () => {
               <FormInput id="recovery-code" readOnly value={registrationResult.recovery_code} />
             </FormField>
             <RegisterDescription>
-              Guarda este código en un lugar seguro. Si pierdes el acceso y no puedes recuperar por correo,
-              lo necesitarás para cambiar la contraseña.
+              Los correos están desactivados. Guarda este código en un lugar seguro para poder restablecer tu contraseña.
             </RegisterDescription>
-            {registrationResult.user.email && (
-              <BackLink to="/verify-email" state={{ email: registrationResult.user.email }}>
-                Confirmar correo para habilitar la recuperación por email
-              </BackLink>
-            )}
             <BackLink to="/login">Ir a iniciar sesión</BackLink>
           </>
         ) : (

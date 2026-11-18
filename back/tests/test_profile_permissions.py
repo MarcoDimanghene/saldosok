@@ -55,6 +55,11 @@ class ProfilePermissionTests(unittest.TestCase):
         )
         self.assertTrue(
             self._route_dependency(
+                users_router, "/users/{user_id}/password", get_current_tenant_admin
+            )
+        )
+        self.assertTrue(
+            self._route_dependency(
                 payments_router, "/payments/collection/invoice/{invoice_id}",
                 get_current_sales_user,
             )
@@ -128,6 +133,7 @@ class ProfilePermissionTests(unittest.TestCase):
             nombre="Usuario Analista",
             username="usuario.analista",
             email="analista@example.com",
+            password="secure-password",
             perfil="analista",
         )
 

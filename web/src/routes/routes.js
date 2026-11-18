@@ -26,6 +26,7 @@ export const USERS_ROUTES = {
   me: '/users/me',
   byId: (userId) => `/users/${userId}`,
   invitation: (userId) => `/users/${userId}/invitation`,
+  password: (userId) => `/users/${userId}/password`,
   update: (userId) => `/users/${userId}`,
   delete: (userId) => `/users/${userId}`,
 };

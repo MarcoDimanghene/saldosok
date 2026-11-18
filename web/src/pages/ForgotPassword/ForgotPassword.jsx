@@ -13,33 +13,16 @@ import {
   LoginTitle,
   SubmitButton,
 } from '../Login/Login.styles';
-import { requestPasswordReset, resetPasswordWithRecoveryCode } from '../../services/authService';
+import { resetPasswordWithRecoveryCode } from '../../services/authService';
 
 const ForgotPassword = () => {
-  const [email, setEmail] = useState('');
   const [recovery, setRecovery] = useState({
     username: '',
     recovery_code: '',
     new_password: '',
   });
-  const [emailStatus, setEmailStatus] = useState(null);
   const [recoveryStatus, setRecoveryStatus] = useState(null);
-  const [isSending, setIsSending] = useState(false);
   const [isRecovering, setIsRecovering] = useState(false);
-
-  const handleEmailSubmit = async (event) => {
-    event.preventDefault();
-    setEmailStatus(null);
-    setIsSending(true);
-    try {
-      const result = await requestPasswordReset(email.trim());
-      setEmailStatus({ error: false, message: result.message });
-    } catch (error) {
-      setEmailStatus({ error: true, message: error.message || 'No se pudo enviar el enlace.' });
-    } finally {
-      setIsSending(false);
-    }
-  };
 
   const handleRecoverySubmit = async (event) => {
     event.preventDefault();
@@ -68,30 +51,9 @@ const ForgotPassword = () => {
       <LoginCard>
         <LoginTitle>Recuperar contraseña</LoginTitle>
         <LoginDescription>
-          Usa el correo confirmado de tu cuenta o, si eres administrador principal, el código de recuperación
-          que guardaste al registrarte.
+          La recuperación por correo está desactivada. Usa el código de recuperación de administrador o solicita
+          al administrador de tu espacio que cambie tu contraseña.
         </LoginDescription>
-
-        <LoginForm onSubmit={handleEmailSubmit}>
-          <h2>Recibir enlace por correo</h2>
-          <FormField>
-            <FormLabel htmlFor="reset-email">Correo confirmado</FormLabel>
-            <FormInput
-              id="reset-email"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              required
-            />
-          </FormField>
-          {emailStatus && (
-            <p role={emailStatus.error ? 'alert' : 'status'}>{emailStatus.message}</p>
-          )}
-          <SubmitButton type="submit" disabled={isSending}>
-            {isSending ? 'Enviando…' : 'Enviar enlace'}
-          </SubmitButton>
-        </LoginForm>
 
         <LoginForm onSubmit={handleRecoverySubmit} style={{ marginTop: '2rem' }}>
           <h2>Usar código de recuperación</h2>

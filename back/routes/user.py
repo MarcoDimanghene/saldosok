@@ -1,5 +1,3 @@
-import secrets
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -11,7 +9,6 @@ from database.security import (
     get_current_user,
     get_password_hash,
 )
-from back.services.user_invitation import issue_user_invitation
 
 
 router = APIRouter(
@@ -64,14 +61,13 @@ def create_user_for_tenant(
             detail="Ya existe una cuenta con ese DNI.",
         )
 
-    hashed_pass = get_password_hash(secrets.token_urlsafe(48))
+    hashed_pass = get_password_hash(user.password)
     created_user = crud.create_user(
         db=db, tenant_id=current_user.tenant_id, user=user, hashed_password=hashed_pass
     )
-    issue_user_invitation(db, created_user)
     return {
         "user": created_user,
-        "message": "Se creó la cuenta y se envió un enlace para establecer la contraseña.",
+        "message": "Se creó la cuenta. El usuario ya puede iniciar sesión con la contraseña definida.",
     }
 
 
@@ -114,27 +110,29 @@ def resend_user_invitation(
     user = crud.get_user(db=db, tenant_id=current_user.tenant_id, user_id=user_id)
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado.")
-    if user.is_email_verified:
-        raise HTTPException(
-            status_code=409,
-            detail="El usuario ya confirmó su correo; puede recuperar su contraseña desde el login.",
-        )
-    if not user.is_active:
-        raise HTTPException(
-            status_code=409,
-            detail="Activa la cuenta antes de reenviar la invitación.",
-        )
-    if not user.email:
-        raise HTTPException(
-            status_code=409,
-            detail="Agrega un correo electrónico antes de reenviar la invitación.",
-        )
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail="Las invitaciones por correo están desactivadas. Define la contraseña desde el gestor de usuarios.",
+    )
 
-    issue_user_invitation(db, user, action="invitation_resent")
-    return {
-        "user": user,
-        "message": "Se envió un nuevo enlace para establecer la contraseña.",
-    }
+
+@router.patch("/{user_id}/password", status_code=status.HTTP_200_OK)
+def update_user_password(
+    user_id: int,
+    password_update: schemas.UserPasswordUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_tenant_admin),
+):
+    """Permite al administrador definir una contraseña para un usuario de su tenant."""
+    updated_user = crud.update_user_password(
+        db=db,
+        tenant_id=current_user.tenant_id,
+        user_id=user_id,
+        hashed_password=get_password_hash(password_update.password),
+    )
+    if not updated_user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado.")
+    return {"message": "La contraseña se actualizó correctamente."}
 
 
 @router.patch("/{user_id}", response_model=schemas.UserResponse)

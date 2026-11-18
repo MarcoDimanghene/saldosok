@@ -51,36 +51,18 @@ class PasswordRecoveryTests(unittest.TestCase):
         self.session.close()
         self.engine.dispose()
 
-    @patch("back.routes.auth.send_password_reset_email")
-    def test_verified_email_can_reset_password_with_single_use_link(self, send_email):
-        request_password_reset(PasswordResetRequest(email="admin@example.com"), self.session)
-        raw_token = send_email.call_args.args[1]
-
-        result = reset_password(
-            PasswordResetToken(token=raw_token, new_password="new-secret"),
+    def test_password_reset_email_is_disabled(self):
+        result = request_password_reset(
+            PasswordResetRequest(email="admin@example.com"),
             self.session,
         )
 
-        self.assertEqual(result["message"], "La contraseña se restableció correctamente.")
-        self.assertTrue(verify_password("new-secret", self.user.hashed_password))
-        with self.assertRaises(HTTPException):
-            reset_password(
-                PasswordResetToken(token=raw_token, new_password="other-secret"),
-                self.session,
-            )
-
-    def test_unconfirmed_email_does_not_issue_reset_link(self):
-        self.user.is_email_verified = False
-        self.session.commit()
-
-        with patch("back.routes.auth.send_password_reset_email") as send_email:
-            result = request_password_reset(
-                PasswordResetRequest(email="admin@example.com"),
-                self.session,
-            )
-
-        send_email.assert_not_called()
-        self.assertIn("Si la cuenta", result["message"])
+        self.assertIn("está desactivada", result["message"])
+        self.assertEqual(
+            self.session.query(models.PasswordReset).filter_by(user_id=self.user.id).count(),
+            0,
+        )
+        self.assertTrue(verify_password("old-secret", self.user.hashed_password))
 
     def test_recovery_code_is_single_use_and_only_resets_admin_account(self):
         raw_code = "single-use-recovery-code"

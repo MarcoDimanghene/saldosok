@@ -11,7 +11,7 @@ from .operating_results import (
 )
 from .payments import CollectionCreate, CollectionResponse, PaymentCreate, PaymentResponse
 from .user import (
-    UserCreate, UserUpdate, UserResponse, UserCreateResponse, UserInDB,
+    UserCreate, UserUpdate, UserPasswordUpdate, UserResponse, UserCreateResponse, UserInDB,
     EmailVerificationRequest, EmailVerificationToken, EmailVerificationResponse,
     PasswordResetRequest, PasswordResetToken, RecoveryCodePasswordReset,
 )

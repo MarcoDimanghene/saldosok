@@ -129,6 +129,31 @@ def update_user(
     db.refresh(db_user)
     return db_user
 
+
+def update_user_password(
+    db: Session,
+    tenant_id: int,
+    user_id: int,
+    hashed_password: str,
+):
+    db_user = get_user(db, tenant_id=tenant_id, user_id=user_id)
+    if not db_user:
+        return None
+
+    db_user.hashed_password = hashed_password
+    record_audit_event(
+        db,
+        tenant_id,
+        "password_reset",
+        "user",
+        db_user.id,
+        after_data={"password_changed": True},
+    )
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+
 # 6. Eliminar Usuario
 def delete_user(db: Session, tenant_id: int, user_id: int) -> bool:
     db_user = get_user(db, tenant_id=tenant_id, user_id=user_id)

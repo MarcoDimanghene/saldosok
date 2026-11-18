@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from back import schemas, models, crud
-from back.services.email_verification import issue_email_verification
 from database.database import get_db
 from database.security import (
     get_current_superadmin,
@@ -69,18 +68,10 @@ def register_tenant_with_user(
     ))
     db.commit()
 
-    try:
-        issue_email_verification(db, user)
-    except HTTPException:
-        message = (
-            "Cuenta creada. No se pudo enviar la confirmación del correo. "
-            "Guarda ahora el código de recuperación y vuelve a intentar confirmar el email."
-        )
-    else:
-        message = (
-            "Cuenta creada. Confirma tu correo para habilitar la recuperación de contraseña. "
-            "Guarda ahora el código de recuperación."
-        )
+    message = (
+        "Cuenta creada. Los correos están desactivados; guarda el código de recuperación "
+        "para poder restablecer la contraseña."
+    )
 
     return {
         "tenant": tenant,
@@ -129,11 +120,8 @@ def resend_email_verification(
     request: schemas.EmailVerificationRequest,
     db: Session = Depends(get_db),
 ):
-    user = db.query(models.User).filter(func.lower(models.User.email) == request.email.lower()).first()
-    if user and not user.is_email_verified:
-        _issue_email_verification(db, user)
     return {
-        "message": "Si hay una cuenta con ese correo sin confirmar, enviaremos un nuevo enlace."
+        "message": "La confirmación y los envíos por correo están desactivados."
     }
 
 

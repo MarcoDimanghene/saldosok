@@ -1,15 +1,13 @@
 import hashlib
 import secrets
-import smtplib
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy import func, or_
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from back import models, schemas
-from back.services.email import send_password_reset_email
 from back.services.audit import record_audit_event
 from back.models.user import User
 from database.database import get_db
@@ -56,32 +54,8 @@ def request_password_reset(
     request: schemas.PasswordResetRequest,
     db: Session = Depends(get_db),
 ):
-    user = db.query(User).filter(
-        func.lower(User.email) == request.email.lower(),
-        User.is_email_verified.is_(True),
-        User.is_active.is_(True),
-    ).first()
-    if user:
-        raw_token = secrets.token_urlsafe(32)
-        db.query(models.PasswordReset).filter(
-            models.PasswordReset.user_id == user.id
-        ).delete()
-        db.add(models.PasswordReset(
-            user_id=user.id,
-            token_hash=hashlib.sha256(raw_token.encode()).hexdigest(),
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
-        ))
-        db.commit()
-        try:
-            send_password_reset_email(user.email, raw_token)
-        except (OSError, RuntimeError, smtplib.SMTPException) as error:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="No se pudo enviar el enlace de recuperación. Intenta nuevamente más tarde.",
-            ) from error
-
     return {
-        "message": "Si la cuenta tiene un correo confirmado, enviaremos un enlace para restablecer la contraseña."
+        "message": "La recuperación por correo está desactivada. Usa el código de recuperación o solicita al administrador que cambie la contraseña."
     }
 
 
